@@ -94,3 +94,6 @@ docs/latex/
 # Test outputs
 *_test_results.xml
 test_output/
+tests/reports/
+pytest-report.html
+pytest-report.json
