@@ -4,14 +4,14 @@
 # removing temporary files, build artifacts, and resetting the development environment.
 #
 # Features:
-# - Default: Clean all temporary files and artifacts
+# - Default: Clean temporary files and artifacts (excludes IDE files for safety)
 # - Selective cleanup: Choose specific components to clean
 # - Safe operation: Confirmation prompts for destructive operations
 # - Cross-platform: Works on Windows, Linux, and macOS
 # - Comprehensive logging: Clear feedback on what's being cleaned
 
 param(
-    [switch]$All,              # Clean everything (default if no other options specified)
+    [switch]$All,              # Clean everything including IDE files (use explicitly)
     [switch]$Build,            # Clean build directory and CMake cache
     [switch]$Conan,            # Clean Conan cache and packages
     [switch]$Python,           # Clean Python virtual environment and cache
@@ -41,7 +41,7 @@ USAGE:
     .\scripts\clean.ps1 [OPTIONS]
 
 OPTIONS:
-    -All            Clean everything (default if no other options specified)
+    -All            Clean everything including IDE files
     -Build          Clean build directory and CMake cache
     -Conan          Clean Conan cache and packages  
     -Python         Clean Python virtual environment and cache
@@ -55,12 +55,15 @@ OPTIONS:
     -Help           Show this help information
 
 EXAMPLES:
-    .\scripts\clean.ps1                    # Clean everything (with confirmation)
+    .\scripts\clean.ps1                    # Clean everything except IDE files (default behavior)
+    .\scripts\clean.ps1 -All               # Clean everything including IDE files
     .\scripts\clean.ps1 -Build -Python     # Clean only build and Python artifacts
+    .\scripts\clean.ps1 -IDE               # Clean only IDE files
     .\scripts\clean.ps1 -All -Force        # Clean everything without confirmation
     .\scripts\clean.ps1 -DryRun            # Preview what would be cleaned
 
 COMPONENTS CLEANED:
+    Default:    Build, Conan, Python, Docker, Logs, Generated, Temp (excludes IDE)
     Build:      build/, CMakeCache.txt, CMakeFiles/, compile_commands.json
     Conan:      ~/.conan2/ cache, conanfile.lock, conan generated files
     Python:     .venv/, __pycache__/, *.pyc, .pytest_cache/, .coverage
@@ -89,10 +92,14 @@ Set-Location $ProjectRoot
 # Determine what to clean
 $CleanComponents = @()
 
-if ($All -or (!$Build -and !$Conan -and !$Python -and !$Docker -and !$Logs -and !$Generated -and !$IDE -and !$Temp)) {
-    # If -All is specified or no specific components are specified, clean everything
+if ($All) {
+    # If -All is specified explicitly, clean everything including IDE files
     $CleanComponents = @('Build', 'Conan', 'Python', 'Docker', 'Logs', 'Generated', 'IDE', 'Temp')
-    Write-Info "🎯 Cleaning mode: ALL components"
+    Write-Info "🎯 Cleaning mode: ALL components (including IDE files)"
+} elseif (!$Build -and !$Conan -and !$Python -and !$Docker -and !$Logs -and !$Generated -and !$IDE -and !$Temp) {
+    # If no specific components are specified, clean everything EXCEPT IDE files by default
+    $CleanComponents = @('Build', 'Conan', 'Python', 'Docker', 'Logs', 'Generated', 'Temp')
+    Write-Info "🎯 Cleaning mode: DEFAULT (excluding IDE files - use -All or -IDE to include them)"
 } else {
     # Clean only specified components
     if ($Build) { $CleanComponents += 'Build' }

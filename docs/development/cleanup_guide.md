@@ -49,16 +49,42 @@ Clean only specific components using targeted flags:
 - Success/failure status for each operation
 - Duration tracking and summary statistics
 
+## Default Behavior
+
+**Safety First**: By default, the cleanup scripts exclude IDE files to prevent accidental removal of important development configurations. The default behavior includes:
+
+✅ **Cleaned by default:**
+- Build directories and CMake cache files
+- Conan package management artifacts  
+- Python virtual environments and cache files
+- Docker containers, images, and volumes
+- Log files and debug output
+- Generated protobuf/gRPC files
+- System temporary files and caches
+
+❌ **Excluded by default (for safety):**
+- IDE-specific files (.vscode settings, .idea directories, etc.)
+
+To clean IDE files, you must explicitly:
+- Use the `--all` / `-All` flag to clean everything including IDE files
+- Use the `--ide` / `-IDE` flag to clean only IDE files
+- Use specific component flags if you want other components + IDE files
+
+This ensures that important IDE configurations, workspace settings, and development preferences are preserved during routine cleanup operations.
+
 ## Usage
 
 ### Basic Usage
 
 #### Windows (PowerShell)
 ```powershell
-# Clean everything with confirmation
+# Clean development artifacts (excludes IDE files by default)
 .\scripts\clean.ps1
 
-# Clean everything without confirmation
+# Clean everything including IDE files
+.\scripts\clean.ps1 -All
+
+# Clean everything including IDE files without confirmation
 .\scripts\clean.ps1 -All -Force
 
 # Preview what will be cleaned
@@ -70,10 +96,13 @@ Clean only specific components using targeted flags:
 
 #### Linux/macOS (Bash)
 ```bash
-# Clean everything with confirmation
+# Clean development artifacts (excludes IDE files by default)
 ./scripts/clean.sh
 
-# Clean everything without confirmation
+# Clean everything including IDE files
+./scripts/clean.sh --all
+
+# Clean everything including IDE files without confirmation
 ./scripts/clean.sh --all --force
 
 # Preview what will be cleaned
@@ -121,7 +150,7 @@ Clean only specific components using targeted flags:
 
 | Parameter | Short | Description |
 |-----------|-------|-------------|
-| `-All` | | Clean everything (default if no other options) |
+| `-All` | | Clean everything including IDE files (use explicitly) |
 | `-Build` | | Clean build directory and CMake cache |
 | `-Conan` | | Clean Conan cache and packages |
 | `-Python` | | Clean Python virtual environment and cache |
@@ -138,7 +167,7 @@ Clean only specific components using targeted flags:
 
 | Argument | Short | Description |
 |----------|-------|-------------|
-| `--all` | `-a` | Clean everything (default if no other options) |
+| `--all` | `-a` | Clean everything including IDE files (use explicitly) |
 | `--build` | `-b` | Clean build directory and CMake cache |
 | `--conan` | `-c` | Clean Conan cache and packages |
 | `--python` | `-p` | Clean Python virtual environment and cache |
@@ -337,16 +366,22 @@ After running cleanup, you may need to:
 
 #### Before Major Changes
 ```bash
-# Clean everything to ensure fresh start
+# Clean everything including IDE files to ensure completely fresh start
 ./scripts/clean.sh --all --force
 ./scripts/build.sh  # Rebuild from scratch
 ```
 
 #### Debugging Build Issues
 ```bash
-# Clean only build artifacts
+# Clean only build artifacts (default excludes IDE files)
 ./scripts/clean.sh --build
 ./scripts/build.sh  # Try build again
+```
+
+#### Daily Development Cleanup
+```bash
+# Safe cleanup that preserves IDE settings (default behavior)
+./scripts/clean.sh --force
 ```
 
 #### Switching Branches
@@ -372,13 +407,16 @@ After running cleanup, you may need to:
 The cleanup script supports automation through the `--force` flag:
 
 ```bash
-# In CI/CD pipeline
+# In CI/CD pipeline - clean everything including IDE files
 ./scripts/clean.sh --all --force
 
-# In automated testing
+# In automated testing - clean only build and Python artifacts
 ./scripts/clean.sh --build --python --force
 ./scripts/build.sh
 ./scripts/test.sh
+
+# Daily maintenance - clean everything except IDE files
+./scripts/clean.sh --force
 ```
 
 ### 📈 Performance Considerations

@@ -5,7 +5,7 @@
 # removing temporary files, build artifacts, and resetting the development environment.
 #
 # Features:
-# - Default: Clean all temporary files and artifacts
+# - Default: Clean temporary files and artifacts (excludes IDE files for safety)
 # - Selective cleanup: Choose specific components to clean
 # - Safe operation: Confirmation prompts for destructive operations
 # - Cross-platform: Works on Linux and macOS
@@ -105,7 +105,7 @@ USAGE:
     ./scripts/clean.sh [OPTIONS]
 
 OPTIONS:
-    -a, --all            Clean everything (default if no other options specified)
+    -a, --all            Clean everything including IDE files
     -b, --build          Clean build directory and CMake cache
     -c, --conan          Clean Conan cache and packages  
     -p, --python         Clean Python virtual environment and cache
@@ -119,12 +119,15 @@ OPTIONS:
     -h, --help           Show this help information
 
 EXAMPLES:
-    ./scripts/clean.sh                     # Clean everything (with confirmation)
+    ./scripts/clean.sh                     # Clean everything except IDE files (default behavior)
+    ./scripts/clean.sh -a                  # Clean everything including IDE files
     ./scripts/clean.sh -b -p               # Clean only build and Python artifacts
+    ./scripts/clean.sh -i                  # Clean only IDE files
     ./scripts/clean.sh -a -f               # Clean everything without confirmation
     ./scripts/clean.sh -n                  # Preview what would be cleaned
 
 COMPONENTS CLEANED:
+    Default:    Build, Conan, Python, Docker, Logs, Generated, Temp (excludes IDE)
     Build:      build/, CMakeCache.txt, CMakeFiles/, compile_commands.json
     Conan:      ~/.conan2/ cache, conanfile.lock, conan generated files
     Python:     .venv/, __pycache__/, *.pyc, .pytest_cache/, .coverage
@@ -149,10 +152,14 @@ cd "$PROJECT_ROOT"
 # Determine what to clean
 CLEAN_COMPONENTS=()
 
-if [[ "$CLEAN_ALL" == "true" ]] || [[ "$CLEAN_BUILD" == "false" && "$CLEAN_CONAN" == "false" && "$CLEAN_PYTHON" == "false" && "$CLEAN_DOCKER" == "false" && "$CLEAN_LOGS" == "false" && "$CLEAN_GENERATED" == "false" && "$CLEAN_IDE" == "false" && "$CLEAN_TEMP" == "false" ]]; then
-    # If --all is specified or no specific components are specified, clean everything
+if [[ "$CLEAN_ALL" == "true" ]]; then
+    # If --all is specified explicitly, clean everything including IDE files
     CLEAN_COMPONENTS=("Build" "Conan" "Python" "Docker" "Logs" "Generated" "IDE" "Temp")
-    info "🎯 Cleaning mode: ALL components"
+    info "🎯 Cleaning mode: ALL components (including IDE files)"
+elif [[ "$CLEAN_BUILD" == "false" && "$CLEAN_CONAN" == "false" && "$CLEAN_PYTHON" == "false" && "$CLEAN_DOCKER" == "false" && "$CLEAN_LOGS" == "false" && "$CLEAN_GENERATED" == "false" && "$CLEAN_IDE" == "false" && "$CLEAN_TEMP" == "false" ]]; then
+    # If no specific components are specified, clean everything EXCEPT IDE files by default
+    CLEAN_COMPONENTS=("Build" "Conan" "Python" "Docker" "Logs" "Generated" "Temp")
+    info "🎯 Cleaning mode: DEFAULT (excluding IDE files - use --all or --ide to include them)"
 else
     # Clean only specified components
     [[ "$CLEAN_BUILD" == "true" ]] && CLEAN_COMPONENTS+=("Build")

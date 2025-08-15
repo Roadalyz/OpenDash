@@ -26,6 +26,7 @@ scripts/
 
 The cleanup scripts (`clean.sh` / `clean.ps1`) provide comprehensive environment cleanup capabilities:
 
+- **Safe by default**: Excludes IDE files unless explicitly requested
 - **Selective cleaning**: Choose specific components (build, Python, Docker, etc.)
 - **Safety features**: Confirmation prompts and dry-run mode
 - **Complete documentation**: See [Cleanup Guide](cleanup_guide.html) for full details
@@ -36,14 +37,17 @@ The cleanup scripts (`clean.sh` / `clean.ps1`) provide comprehensive environment
 # Preview what will be cleaned
 ./scripts/clean.sh --dry-run
 
-# Clean everything with confirmation
+# Clean development artifacts (safe default - excludes IDE files)
+./scripts/clean.sh
+
+# Clean everything including IDE files
 ./scripts/clean.sh --all
 
 # Clean only build artifacts
 ./scripts/clean.sh --build
 
 # Clean without prompts (for automation)
-./scripts/clean.sh --all --force
+./scripts/clean.sh --force
 ```
 
 ### Cross-Platform Design Philosophy
@@ -810,14 +814,17 @@ graph TD
 
 ### clean.sh / clean.ps1
 
-**Purpose**: Comprehensive project cleanup
+**Purpose**: Comprehensive project cleanup with safety-first approach
 
 **Usage**:
 ```bash
-# Clean build artifacts
+# Safe cleanup (excludes IDE files by default)
+./scripts/clean.sh
+
+# Clean build artifacts only
 ./scripts/clean.sh build
 
-# Clean all generated files
+# Clean everything including IDE files
 ./scripts/clean.sh all
 
 # Clean specific components
