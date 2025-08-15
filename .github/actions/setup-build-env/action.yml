@@ -1,0 +1,173 @@
+# Setup Build Environment Action
+# Custom action to set up cross-platform build environment
+
+name: 'Setup Build Environment'
+description: 'Setup CMake, Conan, and compiler for cross-platform builds'
+
+inputs:
+  compiler:
+    description: 'Compiler to use (gcc, clang, msvc)'
+    required: true
+    default: 'gcc'
+  
+  cmake-version:
+    description: 'CMake version to install'
+    required: false
+    default: '3.27.0'
+  
+  conan-version:
+    description: 'Conan version to install'
+    required: false
+    default: '2.0.0'
+
+runs:
+  using: 'composite'
+  steps:
+    # ==========================================================================
+    # Platform-specific Setup
+    # ==========================================================================
+    
+    - name: 🪟 Setup Windows Environment
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        Write-Host "🪟 Setting up Windows build environment..."
+        
+        # Install Chocolatey if not present
+        if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
+          Set-ExecutionPolicy Bypass -Scope Process -Force
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+        }
+        
+        # Install build tools
+        choco install cmake --version=${{ inputs.cmake-version }} -y
+        choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools" -y
+        
+        # Refresh environment
+        refreshenv
+    
+    - name: 🍎 Setup macOS Environment
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        echo "🍎 Setting up macOS build environment..."
+        
+        # Update Homebrew
+        brew update
+        
+        # Install CMake if specific version is needed
+        if [[ "${{ inputs.cmake-version }}" != "latest" ]]; then
+          brew install cmake@${{ inputs.cmake-version }} || brew install cmake
+        else
+          brew install cmake
+        fi
+        
+        # Ensure Xcode command line tools are installed
+        xcode-select --install 2>/dev/null || true
+        
+        # Set up compiler environment
+        if [[ "${{ inputs.compiler }}" == "clang" ]]; then
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+        fi
+    
+    - name: 🐧 Setup Linux Environment
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        echo "🐧 Setting up Linux build environment..."
+        
+        # Update package lists
+        sudo apt-get update
+        
+        # Install build essentials
+        sudo apt-get install -y \
+          build-essential \
+          pkg-config \
+          libc6-dev \
+          libstdc++-dev
+        
+        # Install specific compiler
+        if [[ "${{ inputs.compiler }}" == "clang" ]]; then
+          sudo apt-get install -y clang llvm
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+        elif [[ "${{ inputs.compiler }}" == "gcc" ]]; then
+          sudo apt-get install -y gcc g++
+          echo "CC=gcc" >> $GITHUB_ENV
+          echo "CXX=g++" >> $GITHUB_ENV
+        fi
+        
+        # Install CMake
+        if [[ "${{ inputs.cmake-version }}" != "latest" ]]; then
+          # Install specific CMake version
+          CMAKE_VERSION=${{ inputs.cmake-version }}
+          CMAKE_URL="https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz"
+          wget -q $CMAKE_URL -O cmake.tar.gz
+          sudo tar -xzf cmake.tar.gz -C /opt/
+          sudo ln -sf /opt/cmake-${CMAKE_VERSION}-linux-x86_64/bin/cmake /usr/local/bin/cmake
+          sudo ln -sf /opt/cmake-${CMAKE_VERSION}-linux-x86_64/bin/ctest /usr/local/bin/ctest
+          rm cmake.tar.gz
+        else
+          sudo apt-get install -y cmake
+        fi
+    
+    # ==========================================================================
+    # Cross-platform Setup
+    # ==========================================================================
+    
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: ⚡ Install uv
+      shell: bash
+      run: |
+        echo "⚡ Installing uv (fast Python package manager)..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    
+    - name: 📦 Install Conan
+      shell: bash
+      run: |
+        echo "📦 Installing Conan ${{ inputs.conan-version }} using uv..."
+        source $HOME/.cargo/env
+        uv tool install "conan==${{ inputs.conan-version }}"
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        
+        # Set up Conan profile
+        conan profile detect --force
+        
+        # Configure Conan for CI environment
+        conan config set tools.system.package_manager:mode=install
+        conan config set tools.system.package_manager:sudo=True
+    
+    - name: 🔧 Verify Installation
+      shell: bash
+      run: |
+        echo "🔧 Verifying build environment setup..."
+        
+        echo "=== CMake ==="
+        cmake --version
+        
+        echo "=== uv ==="
+        source $HOME/.cargo/env
+        uv --version
+        
+        echo "=== Conan ==="
+        conan --version
+        
+        echo "=== Compiler ==="
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          cl.exe 2>&1 || echo "MSVC compiler check"
+        else
+          $CC --version
+          $CXX --version
+        fi
+        
+        echo "=== Python ==="
+        python --version
+        
+        echo "✅ Build environment setup complete!"

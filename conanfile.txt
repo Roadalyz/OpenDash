@@ -1,0 +1,18 @@
+[requires]
+gtest/1.14.0
+spdlog/1.12.0
+protobuf/3.21.12
+grpc/1.54.3
+# Note: fmt is automatically included as a dependency of spdlog
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[options]
+gtest/*:shared=False
+spdlog/*:shared=False
+protobuf/*:shared=False
+grpc/*:shared=False
+compiler.libcxx=libstdc++11
+build_type=Release

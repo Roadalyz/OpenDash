@@ -1,0 +1,7 @@
+# System test requirements for CI/CD integration
+pytest>=7.4.0              # Testing framework
+psutil>=5.9.0               # System monitoring
+pytest-html>=3.2.0         # HTML test reports for CI
+pytest-xdist>=3.3.0        # Parallel test execution
+pytest-timeout>=2.1.0      # Test timeout handling
+pytest-mock>=3.11.0        # Mocking utilities

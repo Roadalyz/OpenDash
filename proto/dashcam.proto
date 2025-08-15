@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package dashcam;
+
+// Tiger Style: Clear, well-documented service definitions
+// This defines the core dashcam gRPC services for remote monitoring and control
+
+option cc_enable_arenas = true;
+option optimize_for = SPEED;
+
+// Status information for the dashcam system
+message DashcamStatus {
+  bool recording = 1;
+  uint64 frames_captured = 2;
+  uint64 storage_used_bytes = 3;
+  uint64 storage_available_bytes = 4;
+  uint32 current_fps = 5;
+  string current_resolution = 6;
+  int64 uptime_seconds = 7;
+  repeated string active_cameras = 8;
+}
+
+// Configuration for the dashcam system
+message DashcamConfig {
+  uint32 target_fps = 1;
+  string resolution = 2;
+  uint32 quality = 3;
+  bool audio_enabled = 4;
+  uint32 max_file_size_mb = 5;
+  uint32 retention_days = 6;
+  repeated CameraConfig cameras = 7;
+}
+
+// Configuration for individual cameras
+message CameraConfig {
+  string camera_id = 1;
+  string device_path = 2;
+  bool enabled = 3;
+  string position = 4; // e.g., "front", "rear", "side_left", "side_right"
+  uint32 angle_degrees = 5;
+}
+
+// Request/response for getting system status
+message GetStatusRequest {
+  // Empty for now, could add filtering options later
+}
+
+message GetStatusResponse {
+  DashcamStatus status = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+// Request/response for getting configuration
+message GetConfigRequest {
+  // Empty for now
+}
+
+message GetConfigResponse {
+  DashcamConfig config = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+// Request/response for updating configuration
+message UpdateConfigRequest {
+  DashcamConfig config = 1;
+}
+
+message UpdateConfigResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// Request/response for starting/stopping recording
+message StartRecordingRequest {
+  // Optional override settings
+  optional DashcamConfig temp_config = 1;
+}
+
+message StartRecordingResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message StopRecordingRequest {
+  // Empty for now
+}
+
+message StopRecordingResponse {
+  bool success = 1;
+  string error_message = 2;
+  DashcamStatus final_status = 3;
+}
+
+// Main dashcam control service
+service DashcamService {
+  // Get current system status
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  
+  // Get current configuration
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+  
+  // Update configuration
+  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+  
+  // Start recording with current or provided config
+  rpc StartRecording(StartRecordingRequest) returns (StartRecordingResponse);
+  
+  // Stop recording
+  rpc StopRecording(StopRecordingRequest) returns (StopRecordingResponse);
+  
+  // Stream status updates (for real-time monitoring)
+  rpc StreamStatus(GetStatusRequest) returns (stream DashcamStatus);
+}
+
+// Event logging service for audit trails
+message LogEvent {
+  int64 timestamp_ms = 1;
+  string event_type = 2; // e.g., "recording_started", "config_changed", "error"
+  string message = 3;
+  string camera_id = 4; // Optional, for camera-specific events
+  map<string, string> metadata = 5; // Additional key-value data
+}
+
+message GetEventsRequest {
+  int64 start_timestamp_ms = 1;
+  int64 end_timestamp_ms = 2;
+  repeated string event_types = 3; // Filter by event types
+  string camera_id = 4; // Optional camera filter
+  uint32 max_events = 5; // Limit number of results
+}
+
+message GetEventsResponse {
+  repeated LogEvent events = 1;
+  bool success = 2;
+  string error_message = 3;
+  bool has_more = 4; // True if there are more events beyond max_events
+}
+
+service DashcamEventService {
+  // Get historical events
+  rpc GetEvents(GetEventsRequest) returns (GetEventsResponse);
+  
+  // Stream live events
+  rpc StreamEvents(GetEventsRequest) returns (stream LogEvent);
+}

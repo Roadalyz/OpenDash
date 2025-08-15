@@ -1,0 +1,572 @@
+# Dashcam CI/CD Pipeline
+# Comprehensive GitHub Actions workflow for cross-platform builds, testing, and deployment
+
+name: 🚀 CI/CD Pipeline
+
+# Trigger Configuration
+on:
+  # Trigger on pushes to main and develop branches
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  
+  # Trigger on pull requests to main
+  pull_request:
+    branches: [ main ]
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+          - Debug
+          - Release
+          - RelWithDebInfo
+      run_performance_tests:
+        description: 'Run performance tests'
+        required: false
+        default: false
+        type: boolean
+
+# Global Environment Variables
+env:
+  # Build configuration
+  CMAKE_VERSION: '3.27.0'
+  CONAN_VERSION: '2.0.0'
+  
+  # Docker configuration
+  DOCKER_REGISTRY: 'ghcr.io'
+  DOCKER_IMAGE_NAME: 'dashcam'
+  
+  # Artifact retention
+  ARTIFACT_RETENTION_DAYS: 30
+  
+  # Test configuration
+  ENABLE_COVERAGE: 'ON'
+  CTEST_PARALLEL_LEVEL: 4
+
+# ==============================================================================
+# Job Definitions
+# ==============================================================================
+
+jobs:
+  # ============================================================================
+  # Pre-flight Checks
+  # ============================================================================
+  pre-flight:
+    name: 🔍 Pre-flight Checks
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.changes.outputs.should_build }}
+      version: ${{ steps.version.outputs.version }}
+      build_type: ${{ steps.config.outputs.build_type }}
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for proper version detection
+      
+      - name: 🔍 Detect Changes
+        id: changes
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            should_build:
+              - 'src/**'
+              - 'include/**'
+              - 'tests/**'
+              - 'CMakeLists.txt'
+              - 'conanfile.txt'
+              - '.github/workflows/**'
+      
+      - name: 📋 Extract Version
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=$(git describe --tags --always --dirty)
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📋 Version: $VERSION"
+      
+      - name: ⚙️ Configure Build
+        id: config
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            BUILD_TYPE="${{ github.event.inputs.build_type }}"
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ $GITHUB_REF == refs/tags/* ]]; then
+            BUILD_TYPE="Release"
+          else
+            BUILD_TYPE="Debug"
+          fi
+          echo "build_type=$BUILD_TYPE" >> $GITHUB_OUTPUT
+          echo "🔧 Build Type: $BUILD_TYPE"
+
+  # ============================================================================
+  # Multi-Platform Builds
+  # ============================================================================
+  build:
+    name: 🔨 Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    needs: pre-flight
+    if: needs.pre-flight.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Windows MSVC"
+            os: windows-latest
+            compiler: msvc
+            generator: "Visual Studio 17 2022"
+            artifact_name: "dashcam-windows-x64"
+          
+          - name: "macOS Clang"
+            os: macos-latest
+            compiler: clang
+            generator: "Unix Makefiles"
+            artifact_name: "dashcam-macos-universal"
+          
+          - name: "Linux GCC"
+            os: ubuntu-latest
+            compiler: gcc
+            generator: "Unix Makefiles"
+            artifact_name: "dashcam-linux-x64"
+          
+          - name: "Linux Clang"
+            os: ubuntu-latest
+            compiler: clang
+            generator: "Unix Makefiles"
+            artifact_name: "dashcam-linux-clang-x64"
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 🔧 Setup Build Environment
+        uses: ./.github/actions/setup-build-env
+        with:
+          compiler: ${{ matrix.compiler }}
+          cmake-version: ${{ env.CMAKE_VERSION }}
+          conan-version: ${{ env.CONAN_VERSION }}
+      
+      - name: 💾 Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.conan2
+            build/_deps
+          key: ${{ matrix.os }}-${{ matrix.compiler }}-conan-${{ hashFiles('conanfile.txt') }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ matrix.compiler }}-conan-
+      
+      - name: 🏗️ Configure Project
+        run: |
+          mkdir -p build
+          cd build
+          conan install .. --build=missing
+          cmake .. \
+            -G "${{ matrix.generator }}" \
+            -DCMAKE_BUILD_TYPE=${{ needs.pre-flight.outputs.build_type }} \
+            -DENABLE_TESTING=ON \
+            -DENABLE_COVERAGE=${{ env.ENABLE_COVERAGE }} \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+      
+      - name: 🔨 Build Project
+        run: |
+          cd build
+          cmake --build . --config ${{ needs.pre-flight.outputs.build_type }} --parallel
+      
+      - name: 📋 Generate Build Report
+        run: |
+          echo "# Build Report - ${{ matrix.name }}" > build-report.md
+          echo "- **Version**: ${{ needs.pre-flight.outputs.version }}" >> build-report.md
+          echo "- **Build Type**: ${{ needs.pre-flight.outputs.build_type }}" >> build-report.md
+          echo "- **Compiler**: ${{ matrix.compiler }}" >> build-report.md
+          echo "- **Platform**: ${{ matrix.os }}" >> build-report.md
+          echo "- **Timestamp**: $(date)" >> build-report.md
+          
+          # Add build artifacts info
+          echo "## Build Artifacts" >> build-report.md
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            ls -la build/${{ needs.pre-flight.outputs.build_type }}/ >> build-report.md || true
+          else
+            ls -la build/ >> build-report.md
+          fi
+      
+      - name: 📦 Package Artifacts
+        run: |
+          mkdir -p artifacts
+          
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp build/${{ needs.pre-flight.outputs.build_type }}/dashcam.exe artifacts/
+            cp build/${{ needs.pre-flight.outputs.build_type }}/*.dll artifacts/ || true
+          else
+            cp build/dashcam artifacts/
+          fi
+          
+          # Copy additional files
+          cp README.md artifacts/
+          cp LICENSE artifacts/ || true
+          cp build-report.md artifacts/
+      
+      - name: 📤 Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact_name }}-${{ needs.pre-flight.outputs.version }}
+          path: artifacts/
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+  # ============================================================================
+  # Unit Tests
+  # ============================================================================
+  unit-tests:
+    name: 🧪 Unit Tests (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    needs: [pre-flight, build]
+    if: needs.pre-flight.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Windows"
+            os: windows-latest
+            compiler: msvc
+          - name: "macOS"
+            os: macos-latest
+            compiler: clang
+          - name: "Linux"
+            os: ubuntu-latest
+            compiler: gcc
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 🔧 Setup Build Environment
+        uses: ./.github/actions/setup-build-env
+        with:
+          compiler: ${{ matrix.compiler }}
+          cmake-version: ${{ env.CMAKE_VERSION }}
+          conan-version: ${{ env.CONAN_VERSION }}
+      
+      - name: 💾 Restore Dependencies Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.conan2
+            build/_deps
+          key: ${{ matrix.os }}-${{ matrix.compiler }}-conan-${{ hashFiles('conanfile.txt') }}
+      
+      - name: 🏗️ Build for Testing
+        run: |
+          mkdir -p build
+          cd build
+          conan install .. --build=missing
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_TESTING=ON \
+            -DENABLE_COVERAGE=ON
+          cmake --build . --parallel
+      
+      - name: 🧪 Run Unit Tests
+        run: |
+          cd build
+          ctest \
+            --output-on-failure \
+            --parallel ${{ env.CTEST_PARALLEL_LEVEL }} \
+            --output-junit unit-test-results.xml
+      
+      - name: 📊 Generate Coverage Report
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd build
+          make coverage || true
+      
+      - name: 📤 Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: unit-test-results-${{ matrix.name }}
+          path: |
+            build/unit-test-results.xml
+            build/coverage/
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+      
+      - name: 📋 Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit Tests (${{ matrix.name }})
+          path: build/unit-test-results.xml
+          reporter: java-junit
+
+  # ============================================================================
+  # System Tests
+  # ============================================================================
+  system-tests:
+    name: 🔧 System Tests (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    needs: [pre-flight, build]
+    if: needs.pre-flight.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Linux"
+            os: ubuntu-latest
+          - name: "macOS"
+            os: macos-latest
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: ⚡ Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      
+      - name: 📦 Install System Test Dependencies
+        run: |
+          uv sync --extra test
+      
+      - name: 📥 Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dashcam-${{ matrix.name == 'Linux' && 'linux' || 'macos' }}-${{ matrix.name == 'Linux' && 'x64' || 'universal' }}-${{ needs.pre-flight.outputs.version }}
+          path: build/
+      
+      - name: 🔧 Setup Test Environment
+        run: |
+          chmod +x build/dashcam
+          mkdir -p test-output
+      
+      - name: 🧪 Run System Tests
+        run: |
+          cd tests/system
+          uv run pytest \
+            --verbose \
+            --tb=short \
+            --junitxml=../../test-output/system-test-results.xml \
+            --html=../../test-output/system-test-report.html \
+            --self-contained-html
+        env:
+          DASHCAM_EXECUTABLE: ../../build/dashcam
+          PYTHONPATH: ${{ github.workspace }}
+      
+      - name: 📤 Upload System Test Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: system-test-results-${{ matrix.name }}
+          path: test-output/
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+      
+      - name: 📋 Publish System Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: System Tests (${{ matrix.name }})
+          path: test-output/system-test-results.xml
+          reporter: java-junit
+
+  # ============================================================================
+  # Docker Build and Push
+  # ============================================================================
+  docker:
+    name: 🐳 Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [pre-flight, unit-tests]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: 🔐 Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 📋 Extract Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/${{ env.DOCKER_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: 🐳 Build and Push Development Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          target: development
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}-dev
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+      
+      - name: 🐳 Build and Push Production Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+      
+      - name: 🐳 Build and Push Documentation Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.docs
+          push: true
+          tags: ${{ env.DOCKER_REGISTRY }}/${{ github.repository_owner }}/${{ env.DOCKER_IMAGE_NAME }}:docs
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================================
+  # Performance Tests (Optional)
+  # ============================================================================
+  performance-tests:
+    name: ⚡ Performance Tests
+    runs-on: ubuntu-latest
+    needs: [pre-flight, build]
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_performance_tests == 'true') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 📥 Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dashcam-linux-x64-${{ needs.pre-flight.outputs.version }}
+          path: build/
+      
+      - name: ⚡ Run Performance Benchmarks
+        run: |
+          chmod +x build/dashcam
+          mkdir -p performance-results
+          
+          # Run performance tests (placeholder)
+          echo "Running performance benchmarks..."
+          ./build/dashcam --benchmark > performance-results/benchmark.txt || true
+      
+      - name: 📤 Upload Performance Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: performance-results/
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+  # ============================================================================
+  # Release Management
+  # ============================================================================
+  release:
+    name: 🚀 Create Release
+    runs-on: ubuntu-latest
+    needs: [pre-flight, build, unit-tests, system-tests, docker]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 📥 Download All Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: release-artifacts/
+      
+      - name: 📦 Prepare Release Assets
+        run: |
+          cd release-artifacts
+          
+          # Create release packages
+          for dir in dashcam-*-${{ needs.pre-flight.outputs.version }}; do
+            if [ -d "$dir" ]; then
+              tar -czf "${dir}.tar.gz" "$dir"
+              zip -r "${dir}.zip" "$dir"
+            fi
+          done
+          
+          # Move compressed files to root
+          mv *.tar.gz *.zip ../
+          cd ..
+      
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            *.tar.gz
+            *.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # Cleanup and Notifications
+  # ============================================================================
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    needs: [build, unit-tests, system-tests, docker]
+    if: always()
+    
+    steps:
+      - name: 📊 Generate CI Summary
+        run: |
+          echo "# CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Workflow Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch/Tag**: ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Actor**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 🎯 Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build**: ${{ needs.build.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Unit Tests**: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **System Tests**: ${{ needs.system-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Docker**: ${{ needs.docker.result }}" >> $GITHUB_STEP_SUMMARY

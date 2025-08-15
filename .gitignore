@@ -1,0 +1,96 @@
+# Build directories
+build/
+build-*/
+
+# Generated protobuf/gRPC files
+generated/
+*.pb.h
+*.pb.cc
+*.grpc.pb.h
+*.grpc.pb.cc
+
+# Python virtual environments and caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.coverage
+.pytest_cache/
+htmlcov/
+
+# IDE files
+.vscode/settings.json
+.vs/
+*.vcxproj.user
+*.sln
+*.vcxproj
+*.vcxproj.filters
+
+# Conan
+conaninfo.txt
+conanbuildinfo.*
+conan.lock
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.bak
+*.backup
+
+# Core dumps
+core
+core.*
+vgcore.*
+
+# Profiling
+gmon.out
+callgrind.out.*
+cachegrind.out.*
+perf.data*
+
+# Coverage
+*.gcov
+*.gcda
+*.gcno
+coverage/
+
+# Sanitizer outputs
+*.san
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Generated documentation
+docs/html/
+docs/latex/
+
+# Package files
+*.deb
+*.rpm
+*.tar.gz
+*.zip
+
+# Test outputs
+*_test_results.xml
+test_output/

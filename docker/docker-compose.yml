@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  dashcam:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: dashcam_app
+    restart: unless-stopped
+    volumes:
+      # Mount data directory for persistent storage
+      - dashcam_data:/app/data
+      - dashcam_logs:/app/logs
+      # Mount device for camera access (Linux only)
+      # - /dev/video0:/dev/video0
+    # devices:
+    #   - /dev/video0:/dev/video0
+    environment:
+      - LOG_LEVEL=INFO
+    networks:
+      - dashcam_network
+
+  # Optional: Database for metadata storage
+  # database:
+  #   image: postgres:15-alpine
+  #   container_name: dashcam_db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: dashcam
+  #     POSTGRES_USER: dashcam
+  #     POSTGRES_PASSWORD: your_secure_password
+  #   volumes:
+  #     - dashcam_db_data:/var/lib/postgresql/data
+  #   networks:
+  #     - dashcam_network
+
+volumes:
+  dashcam_data:
+    driver: local
+  dashcam_logs:
+    driver: local
+  # dashcam_db_data:
+  #   driver: local
+
+networks:
+  dashcam_network:
+    driver: bridge

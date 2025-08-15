@@ -1,0 +1,19 @@
+# Documentation Server Requirements
+# Install with: pip install -r requirements.txt
+
+# Core documentation dependencies
+markdown>=3.5.0          # Markdown rendering support
+pygments>=2.16.0         # Syntax highlighting for code blocks
+
+# Optional enhancements
+watchdog>=3.0.0          # File watching for auto-reload during development
+jinja2>=3.1.0            # Template engine for advanced documentation features
+
+# Development and testing
+pytest>=7.4.0            # For testing the documentation server
+requests>=2.31.0         # For testing HTTP endpoints
+
+# Quality assurance
+black>=23.0.0            # Code formatting
+flake8>=6.0.0            # Linting
+mypy>=1.5.0              # Type checking
