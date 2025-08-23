@@ -26,6 +26,7 @@ classifiers = [
 
 # Core dependencies for development tooling
 dependencies = [
+    "conan>=2.19.1",
     "markdown>=3.4.0",
     "pygments>=2.15.0",
     "watchdog>=3.0.0",
