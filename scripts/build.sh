@@ -10,6 +10,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="$PROJECT_ROOT/build"
 
+# Ensure uv is available in PATH
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+
+# Function to check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Verify uv is available
+if ! command_exists uv; then
+    echo "Error: uv not found in PATH. Please run the setup script first:"
+    echo "  ./scripts/setup.sh"
+    exit 1
+fi
+
 # Default build type
 BUILD_TYPE="Debug"
 
@@ -72,7 +87,7 @@ cd "$BUILD_DIR"
 
 # Install Conan dependencies
 echo "Installing Conan dependencies..."
-conan install "$PROJECT_ROOT" --output-folder=. --build=missing \
+uv run conan install "$PROJECT_ROOT" --output-folder=. --build=missing \
     --settings=build_type="$BUILD_TYPE"
 
 # Configure with CMake

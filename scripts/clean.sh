@@ -256,8 +256,8 @@ if [[ " ${CLEAN_COMPONENTS[*]} " =~ " Build " ]]; then
     # Compilation database
     remove_safely_with_logging "compile_commands.json" "Compilation database"
     
-    # Build artifacts
-    find . -name "*.o" -o -name "*.obj" -o -name "*.a" -o -name "*.lib" -o -name "*.so" -o -name "*.dylib" 2>/dev/null | while read -r file; do
+    # Build artifacts (exclude virtual environment)
+    find . \( -path "./.venv" -o -path "./venv" -o -path "./env" \) -prune -o \( -name "*.o" -o -name "*.obj" -o -name "*.a" -o -name "*.lib" -o -name "*.so" -o -name "*.dylib" \) -print 2>/dev/null | while read -r file; do
         remove_safely_with_logging "$file" "Build artifact: $(basename "$file")"
     done
     
@@ -301,15 +301,25 @@ if [[ " ${CLEAN_COMPONENTS[*]} " =~ " Python " ]]; then
     remove_safely_with_logging ".venv" "Python virtual environment" true
     remove_safely_with_logging "venv" "Alternative Python virtual environment" true
     
-    # Python cache files
-    find . -name "__pycache__" -type d 2>/dev/null | while read -r dir; do
-        remove_safely_with_logging "$dir" "Python cache: $dir" true
-    done
-    
-    # Python compiled files
-    find . -name "*.pyc" -o -name "*.pyo" -o -name "*.pyd" 2>/dev/null | while read -r file; do
-        remove_safely_with_logging "$file" "Python compiled file: $(basename "$file")"
-    done
+    # Python cache files (only outside virtual environments for build cleaning)
+    if [[ " ${CLEAN_COMPONENTS[*]} " =~ " Build " ]] && [[ ! " ${CLEAN_COMPONENTS[*]} " =~ " Python " ]]; then
+        find . -name "__pycache__" -type d -not -path "./.venv/*" -not -path "./venv/*" -not -path "./env/*" 2>/dev/null | while read -r dir; do
+            remove_safely_with_logging "$dir" "Python cache: $dir" true
+        done
+        
+        find . -name "*.pyc" -o -name "*.pyo" -o -name "*.pyd" -not -path "./.venv/*" -not -path "./venv/*" -not -path "./env/*" 2>/dev/null | while read -r file; do
+            remove_safely_with_logging "$file" "Python compiled file: $(basename "$file")"
+        done
+    else
+        # Full Python cleaning
+        find . -name "__pycache__" -type d 2>/dev/null | while read -r dir; do
+            remove_safely_with_logging "$dir" "Python cache: $dir" true
+        done
+        
+        find . -name "*.pyc" -o -name "*.pyo" -o -name "*.pyd" 2>/dev/null | while read -r file; do
+            remove_safely_with_logging "$file" "Python compiled file: $(basename "$file")"
+        done
+    fi
     
     # Python testing artifacts
     remove_safely_with_logging ".pytest_cache" "Pytest cache" true

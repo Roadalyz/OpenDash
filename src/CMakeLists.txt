@@ -15,11 +15,6 @@
 # - gRPC service implementation for remote communication
 # - Generated protobuf/gRPC code for message serialization
 add_library(dashcam_lib
-    # Core Components - Main application logic
-    core/camera_manager.cpp      # Camera device management and configuration
-    core/video_recorder.cpp      # Video encoding and file management
-    core/storage_manager.cpp     # Storage allocation and cleanup
-    
     # Utility Components - Supporting infrastructure
     utils/logger.cpp             # Tiger Style logging with spdlog integration
     utils/config_parser.cpp      # Configuration file parsing and validation
