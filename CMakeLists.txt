@@ -113,10 +113,16 @@ endif()
 # These packages are defined in conanfile.txt and installed during the build process.
 # Each find_package() call loads Conan-generated CMake modules that define targets.
 
+# Conan Integration
+# ----------------
+# Ensure CMake prioritizes Conan-generated config files over system find modules
+list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_BINARY_DIR})
+list(PREPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_BINARY_DIR})
+
 # Core Dependencies:
 find_package(GTest REQUIRED)     # GoogleTest framework for unit testing
 find_package(spdlog REQUIRED)    # High-performance logging library  
-find_package(Protobuf REQUIRED)  # Protocol buffer serialization (includes protoc compiler)
+find_package(protobuf REQUIRED)  # Protocol buffer serialization (includes protoc compiler)
 find_package(gRPC REQUIRED)      # gRPC framework for remote procedure calls
 
 # gRPC C++ Plugin Detection

@@ -88,7 +88,7 @@ cd "$BUILD_DIR"
 # Install Conan dependencies
 echo "Installing Conan dependencies..."
 uv run conan install "$PROJECT_ROOT" --output-folder=. --build=missing \
-    --settings=build_type="$BUILD_TYPE"
+    --profile="$PROJECT_ROOT/conanprofile" --settings=build_type="$BUILD_TYPE"
 
 # Configure with CMake
 echo "Configuring with CMake..."

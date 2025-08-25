@@ -57,7 +57,7 @@ Set-Location $BuildDir
 
 # Install Conan dependencies
 Write-Host "Installing Conan dependencies..."
-& conan install $ProjectRoot --output-folder=. --build=missing --settings=build_type=$BuildType
+& conan install $ProjectRoot --output-folder=. --build=missing --profile="$ProjectRoot\conanprofile" --settings=build_type=$BuildType
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: Conan install failed"

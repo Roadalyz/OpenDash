@@ -1,0 +1,8 @@
+# Dashcam Project Conan Profile
+# This profile ensures consistent build settings across all developers
+# It inherits platform detection from default profile but enforces C++17
+
+include(default)
+
+[settings]
+compiler.cppstd=17
