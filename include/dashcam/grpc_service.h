@@ -14,7 +14,7 @@
 
 // Forward declare the generated protobuf classes
 namespace dashcam {
-    class DashcamService;
+    class DashcamServiceImpl;
     class DashcamEventService;
 }
 
@@ -81,8 +81,8 @@ private:
     std::unique_ptr<grpc::Server> server_;
     bool running_;
     
-    // Service implementations (to be implemented)
-    // std::unique_ptr<DashcamServiceImpl> dashcam_service_;
+    // Service implementations
+    std::unique_ptr<DashcamServiceImpl> dashcam_service_;
     // std::unique_ptr<DashcamEventServiceImpl> event_service_;
 };
 
