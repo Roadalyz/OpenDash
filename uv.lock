@@ -485,6 +485,11 @@ test = [
     { name = "pytest-json-report" },
 ]
 
+[package.dev-dependencies]
+test = [
+    { name = "pytest-json-report" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
@@ -505,6 +510,9 @@ requires-dist = [
     { name = "watchdog", marker = "extra == 'docs'", specifier = ">=3.0.0" },
 ]
 provides-extras = ["test", "docs", "dev"]
+
+[package.metadata.requires-dev]
+test = [{ name = "pytest-json-report", specifier = ">=1.5.0" }]
 
 [[package]]
 name = "distlib"

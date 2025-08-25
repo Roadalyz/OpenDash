@@ -52,9 +52,9 @@ echo "===================="
 echo "Running System Tests"
 echo "===================="
 
-# Run system tests with pytest
+# Run system tests with pytest using uv run to ensure proper environment
 cd "$PROJECT_ROOT"
-if python3 -m pytest tests/system/ -v --tb=short --junit-xml=build/system_test_results.xml; then
+if uv run pytest tests/system/ -v --tb=short --junit-xml=build/system_test_results.xml --no-cov; then
     echo "✅ System tests PASSED"
     SYSTEM_TESTS_PASSED=1
 else

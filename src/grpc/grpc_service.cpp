@@ -1,5 +1,6 @@
 #include "dashcam/grpc_service.h"
 #include "dashcam/utils/logger.h"
+#include "dashcam_service_impl.h"
 
 #include <grpcpp/grpcpp.h>
 #include <cassert>
@@ -7,7 +8,7 @@
 namespace dashcam {
 
 GrpcServer::GrpcServer(std::string_view address) 
-    : server_address_(address), running_(false) {
+    : server_address_(address), running_(false), dashcam_service_(std::make_unique<DashcamServiceImpl>()) {
     assert(!address.empty()); // Tiger Style: assert preconditions
 }
 
@@ -26,9 +27,8 @@ bool GrpcServer::start() {
         // Listen on the given address without any authentication mechanism
         builder.AddListeningPort(server_address_, grpc::InsecureServerCredentials());
         
-        // Register services (commented out until we implement the service classes)
-        // builder.RegisterService(dashcam_service_.get());
-        // builder.RegisterService(event_service_.get());
+        // Register services
+        builder.RegisterService(dashcam_service_.get());
         
         // Build and start the server
         server_ = builder.BuildAndStart();

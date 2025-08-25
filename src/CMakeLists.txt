@@ -21,6 +21,7 @@ add_library(dashcam_lib
     
     # gRPC Service - Remote communication interface
     grpc/grpc_service.cpp        # gRPC service implementation
+    grpc/dashcam_service_impl.cpp # DashcamService implementation
     
     # Generated Sources - Automatically created from .proto files
     ${PROTO_SRCS}                # Protobuf message implementations (.pb.cc files)
