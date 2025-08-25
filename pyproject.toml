@@ -118,3 +118,8 @@ strict_equality = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+[dependency-groups]
+test = [
+    "pytest-json-report>=1.5.0",
+]
