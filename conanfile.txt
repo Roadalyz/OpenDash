@@ -13,5 +13,3 @@ CMakeToolchain
 gtest/*:shared=False
 spdlog/*:shared=False
 grpc/*:shared=False
-compiler.libcxx=libstdc++11
-build_type=Release
