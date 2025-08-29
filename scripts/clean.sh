@@ -211,7 +211,7 @@ get_size_bytes() {
     elif [[ -d "$path" ]]; then
         # For directories, get total size
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            du -sk "$path" 2>/dev/null | cut -f1 | awk '{print $1 * 1024}' || echo 0
+            du -sk "$path" 2>/dev/null | awk '{print $1 * 1024}' || echo 0
         else
             du -sb "$path" 2>/dev/null | cut -f1 || echo 0
         fi
