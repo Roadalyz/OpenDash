@@ -179,17 +179,22 @@ info ""
 TOTAL_BYTES_CLEANED=0
 TOTAL_FILES_CLEANED=0
 
+# Size constants
+KB=1024
+MB=$((KB*1024))
+GB=$((MB*1024))
+
 # Function to get human readable size
 human_readable_size() {
     local bytes=$1
-    if [[ $bytes -lt 1024 ]]; then
+    if [[ $bytes -lt $KB ]]; then
         echo "${bytes}B"
-    elif [[ $bytes -lt 1048576 ]]; then
-        echo "$(( bytes / 1024 ))KB"
-    elif [[ $bytes -lt 1073741824 ]]; then
-        echo "$(( bytes / 1048576 ))MB"
+    elif [[ $bytes -lt $MB ]]; then
+        echo "$(( bytes / KB ))KB"
+    elif [[ $bytes -lt $GB ]]; then
+        echo "$(( bytes / MB ))MB"
     else
-        echo "$(( bytes / 1073741824 ))GB"
+        echo "$(( bytes / GB ))GB"
     fi
 }
 
