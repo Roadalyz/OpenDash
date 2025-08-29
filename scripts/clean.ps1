@@ -39,9 +39,9 @@ $global:TotalFilesCleared = 0
 # Function to get human readable size
 function Get-HumanReadableSize($bytes) {
     if ($bytes -lt 1KB) { return "$bytes B" }
-    elseif ($bytes -lt 1MB) { return "{0:N0} KB" -f ($bytes / 1KB) }
-    elseif ($bytes -lt 1GB) { return "{0:N0} MB" -f ($bytes / 1MB) }
-    else { return "{0:N2} GB" -f ($bytes / 1GB) }
+    elseif ($bytes -lt 1MB) { return "{0:N1} KB" -f ($bytes / 1KB) }
+    elseif ($bytes -lt 1GB) { return "{0:N1} MB" -f ($bytes / 1MB) }
+    else { return "{0:N1} GB" -f ($bytes / 1GB) }
 }
 
 # Function to get size of file or directory
