@@ -223,11 +223,8 @@ install_python_deps() {
         # Use uv to create virtual environment and install dependencies
         log_info "Using uv to create virtual environment and install dependencies..."
         
-        # Create virtual environment
-        uv venv --python 3.12
-        
         # Install project dependencies (including optional test dependencies)
-        uv sync --extra test --extra docs --extra dev
+        uv sync --python 3.12 --extra test --extra docs --extra dev
         
         # Also install system test requirements if they exist
         if [ -f "tests/system/requirements.txt" ]; then

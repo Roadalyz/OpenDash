@@ -175,25 +175,100 @@ fi
 
 info ""
 
-# Function to safely remove items
+# Variables to track cleanup statistics
+TOTAL_BYTES_CLEANED=0
+TOTAL_FILES_CLEANED=0
+
+# Size constants
+KB=1024
+MB=$((KB*1024))
+GB=$((MB*1024))
+
+# Function to get human readable size
+human_readable_size() {
+    local bytes=$1
+    if [[ $bytes -lt $KB ]]; then
+        echo "${bytes}B"
+    elif [[ $bytes -lt $MB ]]; then
+        echo "$(( bytes / KB ))KB"
+    elif [[ $bytes -lt $GB ]]; then
+        echo "$(( bytes / MB ))MB"
+    else
+        echo "$(( bytes / GB ))GB"
+    fi
+}
+
+# Function to get size of file or directory in bytes
+get_size_bytes() {
+    local path="$1"
+    if [[ -f "$path" ]]; then
+        # For files, get file size
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            stat -f%z "$path" 2>/dev/null || echo 0
+        else
+            stat -c%s "$path" 2>/dev/null || echo 0
+        fi
+    elif [[ -d "$path" ]]; then
+        # For directories, get total size
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            du -sk "$path" 2>/dev/null | awk '{print $1 * 1024}' || echo 0
+        else
+            du -sb "$path" 2>/dev/null | cut -f1 || echo 0
+        fi
+    else
+        echo 0
+    fi
+}
+
+# Function to count files in directory
+count_files() {
+    local path="$1"
+    if [[ -d "$path" ]]; then
+        find "$path" -type f 2>/dev/null | wc -l | tr -d ' '
+    elif [[ -f "$path" ]]; then
+        echo 1
+    else
+        echo 0
+    fi
+}
+
+# Function to safely remove items with size tracking
 remove_safely_with_logging() {
     local path="$1"
     local description="$2"
     local recursive="${3:-false}"
     
     if [[ -e "$path" ]]; then
+        # Calculate size before removal
+        local size_bytes=$(get_size_bytes "$path")
+        local file_count=$(count_files "$path")
+        local human_size=$(human_readable_size $size_bytes)
+        
         if [[ "$DRY_RUN" == "true" ]]; then
-            warning "  [DRY RUN] Would remove: $description ($path)"
+            warning "  [DRY RUN] Would remove: $description ($path) - $human_size"
+            if [[ $file_count -gt 1 ]]; then
+                warning "    Would free: $human_size ($file_count files)"
+            else
+                warning "    Would free: $human_size"
+            fi
         else
             if [[ "$recursive" == "true" ]]; then
                 if rm -rf "$path" 2>/dev/null; then
-                    success "  ✅ Removed: $description"
+                    TOTAL_BYTES_CLEANED=$((TOTAL_BYTES_CLEANED + size_bytes))
+                    TOTAL_FILES_CLEANED=$((TOTAL_FILES_CLEANED + file_count))
+                    if [[ $file_count -gt 1 ]]; then
+                        success "  ✅ Removed: $description - freed $human_size ($file_count files)"
+                    else
+                        success "  ✅ Removed: $description - freed $human_size"
+                    fi
                 else
                     error "  ❌ Failed to remove $description"
                 fi
             else
                 if rm -f "$path" 2>/dev/null; then
-                    success "  ✅ Removed: $description"
+                    TOTAL_BYTES_CLEANED=$((TOTAL_BYTES_CLEANED + size_bytes))
+                    TOTAL_FILES_CLEANED=$((TOTAL_FILES_CLEANED + file_count))
+                    success "  ✅ Removed: $description - freed $human_size"
                 else
                     error "  ❌ Failed to remove $description"
                 fi
@@ -208,14 +283,49 @@ remove_safely_with_logging() {
 invoke_safely_with_logging() {
     local command="$1"
     local description="$2"
+    local estimate_conan_size="${3:-false}"
+    
+    # Try to estimate size for Conan cache cleanup
+    local estimated_size=0
+    local estimated_files=0
+    if [[ "$estimate_conan_size" == "true" && "$description" == *"Conan"* ]]; then
+        # Try to get Conan cache directory size
+        local conan_cache_dir=""
+        if [[ -d "$HOME/.conan2" ]]; then
+            conan_cache_dir="$HOME/.conan2"
+        elif [[ -d "$HOME/.conan" ]]; then
+            conan_cache_dir="$HOME/.conan"
+        fi
+        
+        if [[ -n "$conan_cache_dir" && -d "$conan_cache_dir" ]]; then
+            estimated_size=$(get_size_bytes "$conan_cache_dir")
+            estimated_files=$(count_files "$conan_cache_dir")
+        fi
+    fi
     
     if [[ "$DRY_RUN" == "true" ]]; then
         warning "  [DRY RUN] Would run: $description"
         warning "    Command: $command"
+        if [[ $estimated_size -gt 0 ]]; then
+            local human_size=$(human_readable_size $estimated_size)
+            warning "    Would potentially free: $human_size ($estimated_files files)"
+        fi
     else
         info "  🔄 Running: $description"
+        if [[ $estimated_size -gt 0 ]]; then
+            local human_size=$(human_readable_size $estimated_size)
+            info "  📊 Estimated cleanup: $human_size ($estimated_files files)"
+        fi
+        
         if eval "$command" >/dev/null 2>&1; then
-            success "  ✅ Completed: $description"
+            if [[ $estimated_size -gt 0 ]]; then
+                TOTAL_BYTES_CLEANED=$((TOTAL_BYTES_CLEANED + estimated_size))
+                TOTAL_FILES_CLEANED=$((TOTAL_FILES_CLEANED + estimated_files))
+                local human_size=$(human_readable_size $estimated_size)
+                success "  ✅ Completed: $description - freed ~$human_size ($estimated_files files)"
+            else
+                success "  ✅ Completed: $description"
+            fi
         else
             error "  ❌ Failed: $description"
         fi
@@ -286,7 +396,12 @@ if [[ " ${CLEAN_COMPONENTS[*]} " =~ " Conan " ]]; then
     if [[ "$FORCE" != "true" && "$DRY_RUN" != "true" ]]; then
         read -p "Also clean global Conan cache? This affects other projects. (y/N): " clean_global_conan
         if [[ "$clean_global_conan" == "y" || "$clean_global_conan" == "Y" ]]; then
-            invoke_safely_with_logging "conan remove '*' --confirm" "Global Conan package cache"
+            # Check if conan is available via uv run, fallback to direct conan command
+            if [[ -f "$PROJECT_ROOT/.venv/bin/python" ]] && command -v uv &> /dev/null; then
+                invoke_safely_with_logging "uv run conan remove '*' --confirm" "Global Conan package cache" true
+            else
+                invoke_safely_with_logging "conan remove '*' --confirm" "Global Conan package cache" true
+            fi
         fi
     fi
     
@@ -471,9 +586,26 @@ info ""
 end_time=$(date +%s)
 duration=$((end_time - start_time))
 
+# Cleanup statistics
 success "🎉 Cleanup completed!"
 info "Duration: $duration seconds"
 info "Cleaned components: $(IFS=', '; echo "${CLEAN_COMPONENTS[*]}")"
+
+if [[ $TOTAL_BYTES_CLEANED -gt 0 || $TOTAL_FILES_CLEANED -gt 0 ]]; then
+    info ""
+    info "📊 Cleanup Statistics:"
+    info "  Files removed: $TOTAL_FILES_CLEANED"
+    info "  Disk space freed: $(human_readable_size $TOTAL_BYTES_CLEANED)"
+    
+    # Additional breakdown if significant cleanup occurred
+    if [[ $TOTAL_BYTES_CLEANED -gt 10485760 ]]; then  # > 10MB
+        success "  🚀 Significant cleanup completed - freed $(human_readable_size $TOTAL_BYTES_CLEANED)!"
+    elif [[ $TOTAL_BYTES_CLEANED -gt 1048576 ]]; then  # > 1MB
+        info "  ✨ Good cleanup - freed $(human_readable_size $TOTAL_BYTES_CLEANED)"
+    fi
+else
+    info "📊 No files were removed (everything was already clean)"
+fi
 
 if [[ "$DRY_RUN" == "true" ]]; then
     warning "This was a DRY RUN - no files were actually removed."

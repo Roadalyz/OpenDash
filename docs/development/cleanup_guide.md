@@ -48,6 +48,8 @@ Clean only specific components using targeted flags:
 - Progress indicators for long operations
 - Success/failure status for each operation
 - Duration tracking and summary statistics
+- **Size tracking**: Reports disk space freed for each operation
+- **Total cleanup statistics**: Summary of files removed and disk space freed
 
 ## Default Behavior
 
@@ -467,6 +469,107 @@ Docker not available, skipping Docker cleanup
 2. Run full build process: `./scripts/build.sh`
 3. Check for missing environment variables
 4. Consult build documentation
+
+## Example Output
+
+### Enhanced Size Tracking
+
+The cleanup scripts now provide detailed information about disk space freed during cleanup operations:
+
+#### Linux/macOS Example Output
+```bash
+🧹 Dashcam Project Cleanup Script
+Project root: /Users/user/repos/opendash
+
+🎯 Cleaning mode: DEFAULT (excluding IDE files - use --all or --ide to include them)
+
+⚠️  This will remove temporary files and build artifacts.
+Components to clean: Build,Conan,Python,Docker,Logs,Generated,Temp
+
+🚀 Starting cleanup at 2025-08-28 21:39:35
+
+🔨 Cleaning Build artifacts...
+  ✅ Removed: Build directory - freed 245MB (1,234 files)
+  ℹ️  Not found: CMake cache file
+  ℹ️  Not found: CMake files directory
+
+📦 Cleaning Conan artifacts...
+  ℹ️  Not found: Conan lock file
+  ✅ Removed: CMake user presets - freed 2KB
+Also clean global Conan cache? This affects other projects. (y/N): y
+  🔄 Running: Global Conan package cache
+  📊 Estimated cleanup: 512MB (3,456 files)
+  ✅ Completed: Global Conan package cache - freed ~512MB (3,456 files)
+
+🐍 Cleaning Python artifacts...
+  ✅ Removed: Python virtual environment - freed 89MB (567 files)
+  ✅ Removed: Python cache: ./tests/system/__pycache__ - freed 15KB (8 files)
+  ✅ Removed: Pytest cache - freed 2MB (45 files)
+
+🎉 Cleanup completed!
+Duration: 12.3 seconds
+Cleaned components: Build, Conan, Python, Docker, Logs, Generated, Temp
+
+📊 Cleanup Statistics:
+  Files removed: 5,310
+  Disk space freed: 848MB
+  🚀 Significant cleanup completed - freed 848MB!
+
+💡 Tips:
+  - Use --dry-run to preview what will be cleaned
+  - Use specific flags (--build, --python, etc.) for targeted cleanup
+  - Use --force to skip confirmation prompts
+```
+
+#### Windows PowerShell Example Output
+```powershell
+🧹 Dashcam Project Cleanup Script
+Project root: C:\Users\user\repos\opendash
+
+🎯 Cleaning mode: DEFAULT (excluding IDE files - use -All or -IDE to include them)
+
+⚠️  This will remove temporary files and build artifacts.
+Components to clean: Build, Conan, Python, Docker, Logs, Generated, Temp
+
+🚀 Starting cleanup at 2025-08-28 21:39:35
+
+🔨 Cleaning Build artifacts...
+  ✅ Removed: Build directory - freed 187 MB (987 files)
+  ℹ️  Not found: CMake cache file
+
+📦 Cleaning Conan artifacts...
+  ✅ Removed: CMake user presets - freed 2 KB
+Also clean global Conan cache? This affects other projects. (y/N): y
+  🔄 Running: Global Conan package cache
+  📊 Estimated cleanup: 423 MB (2,134 files)
+  ✅ Completed: Global Conan package cache - freed ~423 MB (2,134 files)
+
+🐍 Cleaning Python artifacts...
+  ✅ Removed: Python virtual environment - freed 76 MB (445 files)
+
+🎉 Cleanup completed!
+Duration: 9.8 seconds
+Cleaned components: Build, Conan, Python, Docker, Logs, Generated, Temp
+
+📊 Cleanup Statistics:
+  Files removed: 3,566
+  Disk space freed: 686 MB
+  🚀 Significant cleanup completed - freed 686 MB!
+
+💡 Tips:
+  - Use -DryRun to preview what will be cleaned
+  - Use specific flags (-Build, -Python, etc.) for targeted cleanup
+  - Use -Force to skip confirmation prompts
+```
+
+### Size Tracking Features
+
+- **Individual file/directory sizes**: Each removal operation shows the exact disk space freed
+- **File count reporting**: Shows number of files removed for directories
+- **Estimated cleanup for commands**: For operations like Conan cache cleanup, estimates size before execution
+- **Total statistics**: Summary showing total files removed and disk space freed
+- **Significant cleanup indicators**: Special messages for large cleanup operations (>10MB gets 🚀, >1MB gets ✨)
+- **Dry run size preview**: Shows what would be cleaned and how much space would be freed
 
 ## Advanced Usage
 
