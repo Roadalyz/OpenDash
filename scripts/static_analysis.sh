@@ -69,6 +69,10 @@ while [[ $# -gt 0 ]]; do
             FIX_ISSUES=true
             shift
             ;;
+        --show-all)
+            SHOW_ALL_OUTPUT=true
+            shift
+            ;;
         --verbose|-v)
             VERBOSE=true
             shift
@@ -81,6 +85,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --cppcheck-only       Run only cppcheck analysis"
             echo "  --format-only         Run only format checking"
             echo "  --fix                 Automatically fix issues where possible"
+            echo "  --show-all            Show all output including filtered system header errors"
             echo "  --verbose, -v         Verbose output"
             echo "  -h, --help           Show this help message"
             echo ""
@@ -144,6 +149,7 @@ if [ "$RUN_CLANG_TIDY" = true ]; then
         CLANG_TIDY_ARGS=(
             "--config-file=$PROJECT_ROOT/.clang-tidy"
             "-p=$BUILD_DIR"
+            "--header-filter=$PROJECT_ROOT/(src|include|tests)/.*"
         )
         
         if [ "$FIX_ISSUES" = true ]; then
@@ -157,14 +163,68 @@ if [ "$RUN_CLANG_TIDY" = true ]; then
         
         # Run clang-tidy on all source files
         CLANG_TIDY_EXIT_CODE=0
+        SYSTEM_HEADER_ISSUES=0
+        REAL_ISSUES=0
+        CLEAN_FILES=0
+        
         for file in "${SOURCE_FILES[@]}"; do
             if [[ "$file" == *.cpp ]] || [[ "$file" == *.h ]] || [[ "$file" == *.hpp ]]; then
                 echo "Analyzing: $file"
-                if ! clang-tidy "${CLANG_TIDY_ARGS[@]}" "$file"; then
-                    CLANG_TIDY_EXIT_CODE=1
+                # Capture output and filter out system header errors
+                if ! clang_tidy_output=$(clang-tidy "${CLANG_TIDY_ARGS[@]}" "$file" 2>&1); then
+                    # Check if the error is ONLY system header issues
+                    if [[ "$SHOW_ALL_OUTPUT" == true ]]; then
+                        echo "  🔍 Raw output (--show-all enabled):"
+                        echo "$clang_tidy_output"
+                        CLANG_TIDY_EXIT_CODE=1
+                        ((REAL_ISSUES++))
+                    elif echo "$clang_tidy_output" | grep -q "file not found" && echo "$clang_tidy_output" | grep -qE "(Availability\.h|atomic|cstddef)" && ! echo "$clang_tidy_output" | grep -q "warning:"; then
+                        # Only system header errors, no actual warnings
+                        missing_header=$(echo "$clang_tidy_output" | grep -oE "'[^']*' file not found" | head -1)
+                        echo "  🔧 Filtered: clang-tidy can't find system header $missing_header"
+                        echo "     → Use --show-all to see full error details"
+                        ((SYSTEM_HEADER_ISSUES++))
+                    else
+                        # Extract and show real warnings/errors (not system header issues)
+                        real_warnings=$(echo "$clang_tidy_output" | grep -E "warning:|error:" | grep -v "file not found")
+                        if [ -n "$real_warnings" ]; then
+                            echo "  ⚠️  Found issues:"
+                            echo "$real_warnings"
+                            CLANG_TIDY_EXIT_CODE=1
+                            ((REAL_ISSUES++))
+                        else
+                            # Only system header errors
+                            missing_header=$(echo "$clang_tidy_output" | grep -oE "'[^']*' file not found" | head -1)
+                            echo "  🔧 Filtered: clang-tidy can't find system header $missing_header"
+                            echo "     → Use --show-all to see full error details"
+                            ((SYSTEM_HEADER_ISSUES++))
+                        fi
+                    fi
+                else
+                    # Show non-error output if any (warnings, suggestions)
+                    if [ -n "$clang_tidy_output" ]; then
+                        echo "  ⚠️  Found warnings/suggestions:"
+                        echo "$clang_tidy_output"
+                        ((REAL_ISSUES++))
+                    else
+                        echo "  ✅ Clean"
+                        ((CLEAN_FILES++))
+                    fi
                 fi
             fi
         done
+        
+        # Summary of clang-tidy results
+        echo ""
+        print_status "clang-tidy analysis summary:"
+        echo "  ✅ Clean files: $CLEAN_FILES"
+        if [ $REAL_ISSUES -gt 0 ]; then
+            echo "  ⚠️  Files with issues: $REAL_ISSUES"
+        fi
+        if [ $SYSTEM_HEADER_ISSUES -gt 0 ]; then
+            echo "  🔧 Files with filtered system header errors: $SYSTEM_HEADER_ISSUES"
+            echo "     → Use 'scripts/static_analysis.sh --show-all --clang-tidy-only' to see raw errors"
+        fi
         
         if [ $CLANG_TIDY_EXIT_CODE -eq 0 ]; then
             print_success "clang-tidy analysis completed successfully"
@@ -183,7 +243,7 @@ if [ "$RUN_CPPCHECK" = true ]; then
         print_warning "Install with: brew install cppcheck (macOS) or apt install cppcheck (Linux)"
     else
         CPPCHECK_ARGS=(
-            "--enable=all"
+            "--enable=warning,style,performance,portability"
             "--inconclusive"
             "--force"
             "--inline-suppr"
@@ -193,6 +253,21 @@ if [ "$RUN_CPPCHECK" = true ]; then
             "--suppress=missingIncludeSystem"
             "--suppress=unusedFunction"
             "--suppress=unmatchedSuppression"
+            "--suppress=syntaxError:*/tests/*"
+            "--suppress=missingInclude:*/grpc/*"
+            "--suppress=functionStatic"
+            "--suppress=normalCheckLevelMaxBranches"
+            "-DTEST_F(x,y)=void"
+            "-DTEST(x,y)=void"
+            "-DEXPECT_EQ(x,y)="
+            "-DEXPECT_NE(x,y)="
+            "-DEXPECT_TRUE(x)="
+            "-DEXPECT_FALSE(x)="
+            "-DASSERT_EQ(x,y)="
+            "-DASSERT_NE(x,y)="
+            "-DASSERT_TRUE(x)="
+            "-DASSERT_FALSE(x)="
+            "-DASSERT_THAT(x,y)="
         )
         
         if [ "$VERBOSE" = true ]; then

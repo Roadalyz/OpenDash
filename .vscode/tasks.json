@@ -196,12 +196,7 @@
         {
             "label": "format-code",
             "type": "shell",
-            "command": "find",
-            "args": [
-                "src", "include", "tests",
-                "-name", "*.cpp", "-o", "-name", "*.h", "-o", "-name", "*.hpp",
-                "|", "xargs", "clang-format", "-i"
-            ],
+            "command": "find src include tests -name '*.cpp' -o -name '*.h' -o -name '*.hpp' | xargs clang-format -i",
             "group": "build",
             "presentation": {
                 "echo": true,

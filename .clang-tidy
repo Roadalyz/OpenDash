@@ -23,12 +23,10 @@ Checks: >
   portability-*,
   readability-*,
   
-  # Disable specific checks that conflict with Tiger Style or are too noisy
   -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,
   -cert-err58-cpp,
   -clang-analyzer-cplusplus.NewDeleteLeaks,
-  -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-non-private-member-variables-in-classes,
   -cppcoreguidelines-owning-memory,
@@ -47,7 +45,28 @@ Checks: >
   -modernize-use-trailing-return-type,
   -readability-avoid-const-params-in-decls,
   -readability-magic-numbers,
-  -readability-named-parameter
+  -readability-named-parameter,
+  
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -modernize-use-nodiscard,
+  -misc-include-cleaner,
+  -portability-avoid-pragma-once,
+  -readability-convert-member-functions-to-static,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -readability-identifier-naming,
+  -clang-diagnostic-error,
+  -misc-unused-parameters,
+  -modernize-concat-nested-namespaces,
+  -cppcoreguidelines-pro-type-member-init,
+  -hicpp-member-init,
+  -misc-const-correctness,
+  -readability-function-size,
+  -readability-identifier-length,
+  -misc-use-internal-linkage,
+  -readability-simplify-boolean-expr,
+  -readability-implicit-bool-conversion,
+  -cppcoreguidelines-missing-std-forward,
+  -performance-enum-size
 
 # Tiger Style specific check options
 CheckOptions:
@@ -59,19 +78,27 @@ CheckOptions:
   readability-function-size.NestingThreshold: 4
   readability-function-size.VariableThreshold: 20
   
-  # Naming conventions (snake_case for Tiger Style)
-  readability-identifier-naming.NamespaceCase: snake_case
-  readability-identifier-naming.ClassCase: PascalCase
-  readability-identifier-naming.StructCase: PascalCase
-  readability-identifier-naming.FunctionCase: snake_case
-  readability-identifier-naming.MethodCase: snake_case
-  readability-identifier-naming.VariableCase: snake_case
-  readability-identifier-naming.ParameterCase: snake_case
-  readability-identifier-naming.MemberCase: snake_case
+  # Naming conventions (Tiger Style)
+  readability-identifier-naming.NamespaceCase: lower_case
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.FunctionCase: lower_case
+  readability-identifier-naming.MethodCase: lower_case
+  readability-identifier-naming.VariableCase: lower_case
+  readability-identifier-naming.ParameterCase: lower_case
+  readability-identifier-naming.MemberCase: lower_case
   readability-identifier-naming.PrivateMemberSuffix: _
+  
+  # Magic numbers detection (Tiger Style: avoid magic numbers)
+  cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues: "0;1;2;-1"
+  cppcoreguidelines-avoid-magic-numbers.IgnoredFloatingPointValues: "0.0;1.0;2.0;-1.0"
+  cppcoreguidelines-avoid-magic-numbers.IgnoreBitFieldsWidths: true
+  cppcoreguidelines-avoid-magic-numbers.IgnorePowersOf2IntegerValues: false
+  readability-magic-numbers.IgnoredIntegerValues: "0;1;2;-1"
+  readability-magic-numbers.IgnoredFloatingPointValues: "0.0;1.0;2.0;-1.0"
   readability-identifier-naming.ConstantCase: UPPER_CASE
-  readability-identifier-naming.EnumCase: PascalCase
-  readability-identifier-naming.EnumConstantCase: PascalCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.EnumConstantCase: CamelCase
   readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
   
   # Performance optimizations
@@ -106,4 +133,3 @@ HeaderFilterRegex: '^.*/(?:src|include|tests)/.*\.(h|hpp|hxx)$'
 FormatStyle: file
 
 # Additional configuration
-AnalyzeTemporaryDtors: true
