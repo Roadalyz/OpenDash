@@ -106,6 +106,16 @@ if [ -f compile_commands.json ]; then
     cp compile_commands.json "$PROJECT_ROOT/"
 fi
 
+# Update VS Code configuration with Conan include paths
+echo "Updating VS Code configuration..."
+if [ -f "$PROJECT_ROOT/scripts/update_vscode_config.py" ] && command_exists python3; then
+    cd "$PROJECT_ROOT"
+    python3 scripts/update_vscode_config.py
+    cd "$BUILD_DIR"
+else
+    echo "Warning: Could not update VS Code configuration (missing script or python3)"
+fi
+
 echo ""
 echo "Build completed successfully!"
 echo "Build type: $BUILD_TYPE"

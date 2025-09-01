@@ -9,7 +9,6 @@
 # - Safe operation: Confirmation prompts for destructive operations
 # - Cross-platform: Works on Windows, Linux, and macOS
 # - Comprehensive logging: Clear feedback on what's being cleaned
-# - Size tracking: Reports how much disk space is freed
 
 param(
     [switch]$All,              # Clean everything including IDE files (use explicitly)
@@ -31,40 +30,6 @@ function Write-Info($message) { Write-Host $message -ForegroundColor Cyan }
 function Write-Success($message) { Write-Host $message -ForegroundColor Green }
 function Write-Warning($message) { Write-Host $message -ForegroundColor Yellow }
 function Write-Error($message) { Write-Host $message -ForegroundColor Red }
-
-# Variables to track cleanup statistics
-$global:TotalBytesCleared = 0
-$global:TotalFilesCleared = 0
-
-# Function to get human readable size
-function Get-HumanReadableSize($bytes) {
-    if ($bytes -lt 1KB) { return "$bytes B" }
-    elseif ($bytes -lt 1MB) { return "{0:N1} KB" -f ($bytes / 1KB) }
-    elseif ($bytes -lt 1GB) { return "{0:N1} MB" -f ($bytes / 1MB) }
-    else { return "{0:N1} GB" -f ($bytes / 1GB) }
-}
-
-# Function to get size of file or directory
-function Get-PathSize($path) {
-    if (-not (Test-Path $path)) { return @{ Size = 0; Files = 0 } }
-    
-    if (Test-Path $path -PathType Leaf) {
-        # It's a file
-        $size = (Get-Item $path).Length
-        return @{ Size = $size; Files = 1 }
-    } else {
-        # It's a directory
-        try {
-            $items = Get-ChildItem $path -Recurse -Force -ErrorAction SilentlyContinue
-            $files = $items | Where-Object { -not $_.PSIsContainer }
-            $totalSize = ($files | Measure-Object -Property Length -Sum).Sum
-            if ($null -eq $totalSize) { $totalSize = 0 }
-            return @{ Size = $totalSize; Files = $files.Count }
-        } catch {
-            return @{ Size = 0; Files = 0 }
-        }
-    }
-}
 
 # Help information
 if ($Help) {
@@ -150,7 +115,7 @@ if ($All) {
 
 Write-Info ""
 
-# Function to safely remove items with size tracking
+# Function to safely remove items
 function Remove-SafelyWithLogging {
     param(
         [string]$Path,
@@ -159,17 +124,8 @@ function Remove-SafelyWithLogging {
     )
     
     if (Test-Path $Path) {
-        # Calculate size before removal
-        $sizeInfo = Get-PathSize $Path
-        $humanSize = Get-HumanReadableSize $sizeInfo.Size
-        
         if ($DryRun) {
-            Write-Warning "  [DRY RUN] Would remove: $Description ($Path) - $humanSize"
-            if ($sizeInfo.Files -gt 1) {
-                Write-Warning "    Would free: $humanSize ($($sizeInfo.Files) files)"
-            } else {
-                Write-Warning "    Would free: $humanSize"
-            }
+            Write-Warning "  [DRY RUN] Would remove: $Description ($Path)"
         } else {
             try {
                 if ($Recurse) {
@@ -177,13 +133,7 @@ function Remove-SafelyWithLogging {
                 } else {
                     Remove-Item $Path -Force -ErrorAction Stop
                 }
-                $global:TotalBytesCleared += $sizeInfo.Size
-                $global:TotalFilesCleared += $sizeInfo.Files
-                if ($sizeInfo.Files -gt 1) {
-                    Write-Success "  ✅ Removed: $Description - freed $humanSize ($($sizeInfo.Files) files)"
-                } else {
-                    Write-Success "  ✅ Removed: $Description - freed $humanSize"
-                }
+                Write-Success "  ✅ Removed: $Description"
             } catch {
                 Write-Error "  ❌ Failed to remove $Description`: $_"
             }
@@ -193,57 +143,21 @@ function Remove-SafelyWithLogging {
     }
 }
 
-# Function to run commands safely with Conan size estimation
+# Function to run commands safely
 function Invoke-SafelyWithLogging {
     param(
         [string]$Command,
-        [string]$Description,
-        [switch]$EstimateConanSize = $false
+        [string]$Description
     )
-    
-    # Try to estimate size for Conan cache cleanup
-    $estimatedSize = 0
-    $estimatedFiles = 0
-    if ($EstimateConanSize -and $Description -like "*Conan*") {
-        $conanCacheDir = ""
-        if (Test-Path "$env:USERPROFILE\.conan2") {
-            $conanCacheDir = "$env:USERPROFILE\.conan2"
-        } elseif (Test-Path "$env:USERPROFILE\.conan") {
-            $conanCacheDir = "$env:USERPROFILE\.conan"
-        }
-        
-        if ($conanCacheDir -and (Test-Path $conanCacheDir)) {
-            $sizeInfo = Get-PathSize $conanCacheDir
-            $estimatedSize = $sizeInfo.Size
-            $estimatedFiles = $sizeInfo.Files
-        }
-    }
     
     if ($DryRun) {
         Write-Warning "  [DRY RUN] Would run: $Description"
         Write-Warning "    Command: $Command"
-        if ($estimatedSize -gt 0) {
-            $humanSize = Get-HumanReadableSize $estimatedSize
-            Write-Warning "    Would potentially free: $humanSize ($estimatedFiles files)"
-        }
     } else {
         try {
             Write-Info "  🔄 Running: $Description"
-            if ($estimatedSize -gt 0) {
-                $humanSize = Get-HumanReadableSize $estimatedSize
-                Write-Info "  📊 Estimated cleanup: $humanSize ($estimatedFiles files)"
-            }
-            
             Invoke-Expression $Command | Out-Null
-            
-            if ($estimatedSize -gt 0) {
-                $global:TotalBytesCleared += $estimatedSize
-                $global:TotalFilesCleared += $estimatedFiles
-                $humanSize = Get-HumanReadableSize $estimatedSize
-                Write-Success "  ✅ Completed: $Description - freed ~$humanSize ($estimatedFiles files)"
-            } else {
-                Write-Success "  ✅ Completed: $Description"
-            }
+            Write-Success "  ✅ Completed: $Description"
         } catch {
             Write-Error "  ❌ Failed: $Description - $_"
         }
@@ -320,12 +234,7 @@ if ('Conan' -in $CleanComponents) {
     if (!$Force -and !$DryRun) {
         $cleanGlobalConan = Read-Host "Also clean global Conan cache? This affects other projects. (y/N)"
         if ($cleanGlobalConan -eq 'y' -or $cleanGlobalConan -eq 'Y') {
-            # Check if conan is available via uv run, fallback to direct conan command
-            if ((Test-Path "$ProjectRoot\.venv\Scripts\python.exe") -and (Get-Command "uv" -ErrorAction SilentlyContinue)) {
-                Invoke-SafelyWithLogging -Command "uv run conan remove '*' --confirm" -Description "Global Conan package cache" -EstimateConanSize
-            } else {
-                Invoke-SafelyWithLogging -Command "conan remove '*' --confirm" -Description "Global Conan package cache" -EstimateConanSize
-            }
+            Invoke-SafelyWithLogging -Command "conan remove '*' --confirm" -Description "Global Conan package cache"
         }
     }
     
@@ -519,26 +428,9 @@ Write-Info ""
 $endTime = Get-Date
 $duration = $endTime - $startTime
 
-# Cleanup statistics
 Write-Success "🎉 Cleanup completed!"
 Write-Info "Duration: $($duration.TotalSeconds.ToString('F1')) seconds"
 Write-Info "Cleaned components: $($CleanComponents -join ', ')"
-
-if ($global:TotalBytesCleared -gt 0 -or $global:TotalFilesCleared -gt 0) {
-    Write-Info ""
-    Write-Info "📊 Cleanup Statistics:"
-    Write-Info "  Files removed: $global:TotalFilesCleared"
-    Write-Info "  Disk space freed: $(Get-HumanReadableSize $global:TotalBytesCleared)"
-    
-    # Additional breakdown if significant cleanup occurred
-    if ($global:TotalBytesCleared -gt 10MB) {  # > 10MB
-        Write-Success "  🚀 Significant cleanup completed - freed $(Get-HumanReadableSize $global:TotalBytesCleared)!"
-    } elseif ($global:TotalBytesCleared -gt 1MB) {  # > 1MB
-        Write-Info "  ✨ Good cleanup - freed $(Get-HumanReadableSize $global:TotalBytesCleared)"
-    }
-} else {
-    Write-Info "📊 No files were removed (everything was already clean)"
-}
 
 if ($DryRun) {
     Write-Warning "This was a DRY RUN - no files were actually removed."

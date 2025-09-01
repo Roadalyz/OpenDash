@@ -321,6 +321,23 @@ setup_vscode() {
     log_success "VS Code setup complete"
 }
 
+# Update VS Code configuration with Conan include paths
+update_vscode_config() {
+    log_info "Updating VS Code configuration with Conan include paths..."
+    
+    if [ -f "$PROJECT_ROOT/scripts/update_vscode_config.py" ] && command_exists python3; then
+        if [ -f "$PROJECT_ROOT/compile_commands.json" ]; then
+            cd "$PROJECT_ROOT"
+            python3 scripts/update_vscode_config.py || log_warning "Failed to update VS Code configuration"
+            log_success "VS Code configuration updated"
+        else
+            log_info "Skipping VS Code config update (compile_commands.json not found - will update after first build)"
+        fi
+    else
+        log_warning "Could not update VS Code configuration (missing script or python3)"
+    fi
+}
+
 # Docker setup
 setup_docker() {
     if [[ "$SKIP_TOOLS" == true ]]; then
@@ -491,6 +508,7 @@ main() {
     install_python_deps "$uv_available"
     setup_build_dir
     setup_vscode
+    update_vscode_config
     setup_docker
     
     # Verify installation
