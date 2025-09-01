@@ -1,13 +1,15 @@
 #pragma once
 
-namespace dashcam {
+namespace dashcam
+{
 
 /**
  * @brief Handles configuration file parsing and validation
  */
-class ConfigParser {
-public:
+class ConfigParser
+{
+  public:
     // TODO: Define configuration parsing interface
 };
 
-} // namespace dashcam
+}  // namespace dashcam

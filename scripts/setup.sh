@@ -488,6 +488,82 @@ parse_arguments() {
     done
 }
 
+# Static Analysis Tools Setup (Tiger Style)
+setup_static_analysis() {
+    if [[ "$SKIP_TOOLS" == true ]]; then
+        log_info "Skipping static analysis tools setup (--skip-tools specified)"
+        return
+    fi
+    
+    log_info "Setting up static analysis tools (clang-tidy, cppcheck)..."
+    
+    case "$PLATFORM" in
+        arch)
+            if command_exists pacman; then
+                log_info "Installing static analysis tools on Arch Linux..."
+                sudo pacman -S --noconfirm clang-tools-extra cppcheck || log_warning "Failed to install some static analysis tools"
+            fi
+            ;;
+        debian|raspbian)
+            if command_exists apt; then
+                log_info "Installing static analysis tools on Debian/Ubuntu..."
+                sudo apt update
+                sudo apt install -y clang-tidy cppcheck || log_warning "Failed to install some static analysis tools"
+            fi
+            ;;
+        macos)
+            if command_exists brew; then
+                log_info "Installing static analysis tools on macOS..."
+                
+                # Install LLVM (includes clang-tidy) and cppcheck
+                brew install llvm cppcheck clang-format || log_warning "Failed to install some static analysis tools"
+                
+                # Add LLVM tools to PATH (they're installed in a non-standard location on macOS)
+                LLVM_PATH="/opt/homebrew/opt/llvm/bin"
+                if [ -d "$LLVM_PATH" ]; then
+                    log_info "Adding LLVM tools to PATH"
+                    if ! grep -q "$LLVM_PATH" ~/.zshrc 2>/dev/null; then
+                        echo "export PATH=\"$LLVM_PATH:\$PATH\"" >> ~/.zshrc
+                    fi
+                    export PATH="$LLVM_PATH:$PATH"
+                fi
+            fi
+            ;;
+        *)
+            log_warning "Static analysis tools installation not configured for platform: $PLATFORM"
+            ;;
+    esac
+    
+    # Verify installation
+    if command_exists clang-tidy; then
+        log_success "clang-tidy installed successfully"
+    else
+        log_warning "clang-tidy not found. You may need to install it manually:"
+        case "$PLATFORM" in
+            arch) echo "  sudo pacman -S clang-tools-extra" ;;
+            debian|raspbian) echo "  sudo apt install clang-tidy" ;;
+            macos) echo "  brew install llvm" ;;
+        esac
+    fi
+    
+    if command_exists cppcheck; then
+        log_success "cppcheck installed successfully"
+    else
+        log_warning "cppcheck not found. You may need to install it manually:"
+        case "$PLATFORM" in
+            arch) echo "  sudo pacman -S cppcheck" ;;
+            debian|raspbian) echo "  sudo apt install cppcheck" ;;
+            macos) echo "  brew install cppcheck" ;;
+        esac
+    fi
+    
+    if command_exists clang-format; then
+        log_success "clang-format installed successfully"
+    else
+        log_warning "clang-format not found. You may need to install it manually"
+    fi
+}
+
 # Main setup sequence
 main() {
     parse_arguments "$@"
@@ -507,6 +583,7 @@ main() {
     install_conan "$uv_available"
     install_python_deps "$uv_available"
     setup_build_dir
+    setup_static_analysis
     setup_vscode
     update_vscode_config
     setup_docker

@@ -1,12 +1,15 @@
 #include <gtest/gtest.h>
 
-namespace dashcam {
-namespace test {
+namespace dashcam
+{
+namespace test
+{
 
 /**
  * @brief Simple test to verify the test infrastructure works
  */
-TEST(MainTest, BasicAssertions) {
+TEST(MainTest, BasicAssertions)
+{
     // Tiger Style: Test both positive and negative cases
     EXPECT_TRUE(true);
     EXPECT_FALSE(false);
@@ -17,14 +20,15 @@ TEST(MainTest, BasicAssertions) {
 /**
  * @brief Test that demonstrates proper test structure
  */
-TEST(MainTest, ProperTestStructure) {
+TEST(MainTest, ProperTestStructure)
+{
     // Arrange
     const int expected_value = 42;
     const int actual_value = 42;
-    
+
     // Act & Assert
     EXPECT_EQ(actual_value, expected_value);
 }
 
-} // namespace test
-} // namespace dashcam
+}  // namespace test
+}  // namespace dashcam

@@ -1,0 +1,135 @@
+# clang-tidy Configuration for Dashcam Project
+# ===========================================
+# This configuration follows Tiger Style principles for safe, performant C++ code.
+# It enables comprehensive static analysis checks while maintaining reasonable
+# build performance and developer experience.
+
+# Inherit configuration from parent directories
+InheritParentConfig: true
+
+# Core check categories to enable
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  google-*,
+  hicpp-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  -cert-err58-cpp,
+  -clang-analyzer-cplusplus.NewDeleteLeaks,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-vararg,
+  -google-readability-avoid-underscore-in-googletest-name,
+  -google-readability-todo,
+  -hicpp-avoid-c-arrays,
+  -hicpp-no-array-decay,
+  -hicpp-vararg,
+  -misc-non-private-member-variables-in-classes,
+  -modernize-avoid-c-arrays,
+  -modernize-use-trailing-return-type,
+  -readability-avoid-const-params-in-decls,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -modernize-use-nodiscard,
+  -misc-include-cleaner,
+  -portability-avoid-pragma-once,
+  -readability-convert-member-functions-to-static,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -readability-identifier-naming,
+  -clang-diagnostic-error,
+  -misc-unused-parameters,
+  -modernize-concat-nested-namespaces,
+  -cppcoreguidelines-pro-type-member-init,
+  -hicpp-member-init,
+  -misc-const-correctness,
+  -readability-function-size,
+  -readability-identifier-length,
+  -misc-use-internal-linkage,
+  -readability-simplify-boolean-expr,
+  -readability-implicit-bool-conversion,
+  -cppcoreguidelines-missing-std-forward,
+  -performance-enum-size
+
+# Tiger Style specific check options
+CheckOptions:
+  # Function length limit (Tiger Style: 70 lines max)
+  readability-function-size.LineThreshold: 70
+  readability-function-size.StatementThreshold: 50
+  readability-function-size.BranchThreshold: 15
+  readability-function-size.ParameterThreshold: 6
+  readability-function-size.NestingThreshold: 4
+  readability-function-size.VariableThreshold: 20
+  
+  # Naming conventions (Tiger Style)
+  readability-identifier-naming.NamespaceCase: lower_case
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.FunctionCase: lower_case
+  readability-identifier-naming.MethodCase: lower_case
+  readability-identifier-naming.VariableCase: lower_case
+  readability-identifier-naming.ParameterCase: lower_case
+  readability-identifier-naming.MemberCase: lower_case
+  readability-identifier-naming.PrivateMemberSuffix: _
+  
+  # Magic numbers detection (Tiger Style: avoid magic numbers)
+  cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues: "0;1;2;-1"
+  cppcoreguidelines-avoid-magic-numbers.IgnoredFloatingPointValues: "0.0;1.0;2.0;-1.0"
+  cppcoreguidelines-avoid-magic-numbers.IgnoreBitFieldsWidths: true
+  cppcoreguidelines-avoid-magic-numbers.IgnorePowersOf2IntegerValues: false
+  readability-magic-numbers.IgnoredIntegerValues: "0;1;2;-1"
+  readability-magic-numbers.IgnoredFloatingPointValues: "0.0;1.0;2.0;-1.0"
+  readability-identifier-naming.ConstantCase: UPPER_CASE
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.EnumConstantCase: CamelCase
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+  
+  # Performance optimizations
+  performance-for-range-copy.WarnOnAllAutoCopies: true
+  performance-unnecessary-copy-initialization.AllowedTypes: 'shared_ptr;unique_ptr;weak_ptr'
+  
+  # Modernization preferences
+  modernize-loop-convert.MaxCopySize: 16
+  modernize-loop-convert.MinConfidence: reasonable
+  modernize-pass-by-value.IncludeStyle: llvm
+  modernize-replace-auto-ptr.IncludeStyle: llvm
+  modernize-use-auto.MinTypeNameLength: 5
+  modernize-use-auto.RemoveStars: false
+  
+  # Core Guidelines enforcement
+  cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
+  cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions: true
+  
+  # Readability improvements
+  readability-braces-around-statements.ShortStatementLines: 1
+  readability-implicit-bool-conversion.AllowIntegerConditions: true
+  readability-implicit-bool-conversion.AllowPointerConditions: true
+  
+  # Misc configuration
+  misc-throw-by-value-catch-by-reference.CheckThrowTemporaries: true
+
+# Header filter for project files only
+# This ensures clang-tidy only analyzes our code, not external dependencies
+HeaderFilterRegex: '^.*/(?:src|include|tests)/.*\.(h|hpp|hxx)$'
+
+# Format style for automatic fixes (matches project's clang-format config)
+FormatStyle: file
+
+# Additional configuration

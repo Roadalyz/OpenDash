@@ -10,8 +10,8 @@ IndentWidth: 4
 UseTab: Never
 ContinuationIndentWidth: 4
 
-# Braces
-BreakBeforeBraces: Attach
+# Braces - Tiger Style: braces on own lines
+BreakBeforeBraces: Allman
 Cpp11BracedListStyle: true
 
 # Spacing
