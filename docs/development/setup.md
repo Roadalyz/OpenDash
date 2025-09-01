@@ -4,6 +4,58 @@ This comprehensive guide covers setting up the development environment for the D
 
 **🚀 New:** This project now uses [uv](https://github.com/astral-sh/uv) for Python package management, providing 10-100x faster installation speeds and better dependency resolution than pip.
 
+## 🚀 Quick Start
+
+For a rapid setup experience:
+
+1. **Run the automated setup script** for your platform (see platform-specific sections below)
+2. **VS Code Integration**: Our setup automatically configures VS Code with Conan dependencies for perfect IntelliSense. See [VS Code Setup Guide](vscode_setup.md) for details on how this works.
+3. **Build the project**: `./scripts/build.sh debug` (automatically updates VS Code configuration)
+
+### Development Workflow
+
+1. **Edit Source Code**: Modify `.cpp`, `.h`, or `.proto` files
+2. **Build-Triggered Regeneration**: CMake detects .proto changes and regenerates C++ code during build
+3. **Incremental Build**: Only changed files recompile
+4. **Test Integration**: Unit tests automatically include new functionality
+5. **Debug/Profile**: Full debugging support with symbols and sanitizers
+
+### VS Code Integration
+
+This project features automated VS Code configuration that integrates seamlessly with Conan package management:
+
+- **Automatic Include Paths**: No manual configuration needed for spdlog, gRPC, protobuf, etc.
+- **Perfect IntelliSense**: All dependencies resolved automatically
+- **Build Integration**: Configuration updates automatically when dependencies change
+
+The system works by extracting include paths from CMake's compilation database and updating VS Code's C++ configuration automatically. See [VS Code Setup Guide](vscode_setup.md) for complete details on:
+
+- How the automation works
+- Troubleshooting IntelliSense issues  
+- Manual configuration options
+- Cross-platform support
+
+**Quick VS Code Setup**:
+```bash
+# Setup automatically installs VS Code extensions and configures include paths
+./scripts/setup.sh
+
+# Build automatically updates VS Code configuration
+./scripts/build.sh debug
+
+# Manual configuration update (if needed)
+./scripts/update_vscode.sh
+
+# Reload VS Code to apply changes
+# Cmd+Shift+P → "Developer: Reload Window"
+```
+
+## 📋 Verification Checklist
+
+See [VS Code Setup Guide](vscode_setup.md) for details on how this works.
+
+3. **Build the project**: `./scripts/build.sh debug` (automatically updates VS Code configuration)
+
 ## 🎯 Prerequisites Overview
 
 ### System Requirements
@@ -750,7 +802,7 @@ rm -rf build && ./scripts/build.sh debug                # Linux/macOS
 ### Development Workflow
 
 1. **Edit Source Code**: Modify `.cpp`, `.h`, or `.proto` files
-2. **Automatic Regeneration**: Build system detects changes and regenerates code
+2. **Build-Triggered Regeneration**: CMake detects .proto changes and regenerates C++ code during build
 3. **Incremental Build**: Only changed files recompile
 4. **Test Integration**: Unit tests automatically include new functionality
 5. **Debug/Profile**: Full debugging support with symbols and sanitizers
