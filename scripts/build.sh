@@ -27,6 +27,8 @@ fi
 
 # Default build type
 BUILD_TYPE="Debug"
+ENABLE_CLANG_TIDY=""
+ENABLE_CPPCHECK=""
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -43,13 +45,36 @@ while [[ $# -gt 0 ]]; do
             JOBS="$2"
             shift 2
             ;;
+        --clang-tidy)
+            ENABLE_CLANG_TIDY="-DENABLE_CLANG_TIDY=ON"
+            shift
+            ;;
+        --cppcheck)
+            ENABLE_CPPCHECK="-DENABLE_CPPCHECK=ON"
+            shift
+            ;;
+        --static-analysis)
+            ENABLE_CLANG_TIDY="-DENABLE_CLANG_TIDY=ON"
+            ENABLE_CPPCHECK="-DENABLE_CPPCHECK=ON"
+            shift
+            ;;
         -h|--help)
-            echo "Usage: $0 [debug|release] [-j|--jobs NUM_JOBS]"
+            echo "Usage: $0 [debug|release] [OPTIONS]"
             echo ""
             echo "Arguments:"
-            echo "  debug|release    Build type (default: debug)"
-            echo "  -j, --jobs       Number of parallel jobs (default: auto-detect)"
-            echo "  -h, --help       Show this help message"
+            echo "  debug|release      Build type (default: debug)"
+            echo ""
+            echo "Options:"
+            echo "  -j, --jobs NUM     Number of parallel jobs (default: auto-detect)"
+            echo "  --clang-tidy       Enable clang-tidy static analysis"
+            echo "  --cppcheck         Enable cppcheck static analysis"
+            echo "  --static-analysis  Enable all static analysis tools"
+            echo "  -h, --help         Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0 debug                    # Debug build"
+            echo "  $0 release --clang-tidy     # Release build with clang-tidy"
+            echo "  $0 debug --static-analysis  # Debug build with all static analysis"
             exit 0
             ;;
         *)
@@ -92,10 +117,25 @@ uv run conan install "$PROJECT_ROOT" --output-folder=. --build=missing \
 
 # Configure with CMake
 echo "Configuring with CMake..."
-cmake "$PROJECT_ROOT" \
-    -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
-    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+CMAKE_ARGS=(
+    "$PROJECT_ROOT"
+    -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake
+    -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+)
+
+# Add static analysis options if enabled
+if [ -n "$ENABLE_CLANG_TIDY" ]; then
+    CMAKE_ARGS+=("$ENABLE_CLANG_TIDY")
+    echo "Static analysis: clang-tidy enabled"
+fi
+
+if [ -n "$ENABLE_CPPCHECK" ]; then
+    CMAKE_ARGS+=("$ENABLE_CPPCHECK")
+    echo "Static analysis: cppcheck enabled"
+fi
+
+cmake "${CMAKE_ARGS[@]}"
 
 # Build
 echo "Building..."

@@ -5,16 +5,29 @@
 param(
     [string]$BuildType = "Debug",
     [int]$Jobs = 0,
+    [switch]$ClangTidy,
+    [switch]$Cppcheck,
+    [switch]$StaticAnalysis,
     [switch]$Help
 )
 
 if ($Help) {
-    Write-Host "Usage: .\build.ps1 [Debug|Release] [-Jobs NUM_JOBS]"
+    Write-Host "Usage: .\build.ps1 [Debug|Release] [OPTIONS]"
     Write-Host ""
     Write-Host "Arguments:"
-    Write-Host "  BuildType        Build type: Debug or Release (default: Debug)"
-    Write-Host "  -Jobs            Number of parallel jobs (default: auto-detect)"
-    Write-Host "  -Help            Show this help message"
+    Write-Host "  BuildType         Build type: Debug or Release (default: Debug)"
+    Write-Host ""
+    Write-Host "Options:"
+    Write-Host "  -Jobs NUM         Number of parallel jobs (default: auto-detect)"
+    Write-Host "  -ClangTidy        Enable clang-tidy static analysis"
+    Write-Host "  -Cppcheck         Enable cppcheck static analysis"
+    Write-Host "  -StaticAnalysis   Enable all static analysis tools"
+    Write-Host "  -Help             Show this help message"
+    Write-Host ""
+    Write-Host "Examples:"
+    Write-Host "  .\build.ps1 Debug                    # Debug build"
+    Write-Host "  .\build.ps1 Release -ClangTidy       # Release build with clang-tidy"
+    Write-Host "  .\build.ps1 Debug -StaticAnalysis    # Debug build with all static analysis"
     exit 0
 }
 
@@ -67,7 +80,25 @@ if ($LASTEXITCODE -ne 0) {
 
 # Configure with CMake
 Write-Host "Configuring with CMake..."
-& cmake "$ProjectRoot" "-DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake" "-DCMAKE_BUILD_TYPE=$BuildType" "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+$CmakeArgs = @(
+    "$ProjectRoot"
+    "-DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake"
+    "-DCMAKE_BUILD_TYPE=$BuildType"
+    "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+)
+
+# Add static analysis options if enabled
+if ($ClangTidy -or $StaticAnalysis) {
+    $CmakeArgs += "-DENABLE_CLANG_TIDY=ON"
+    Write-Host "Static analysis: clang-tidy enabled"
+}
+
+if ($Cppcheck -or $StaticAnalysis) {
+    $CmakeArgs += "-DENABLE_CPPCHECK=ON"
+    Write-Host "Static analysis: cppcheck enabled"
+}
+
+& cmake @CmakeArgs
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: CMake configuration failed"

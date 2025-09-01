@@ -1,0 +1,109 @@
+# clang-tidy Configuration for Dashcam Project
+# ===========================================
+# This configuration follows Tiger Style principles for safe, performant C++ code.
+# It enables comprehensive static analysis checks while maintaining reasonable
+# build performance and developer experience.
+
+# Inherit configuration from parent directories
+InheritParentConfig: true
+
+# Core check categories to enable
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  google-*,
+  hicpp-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  
+  # Disable specific checks that conflict with Tiger Style or are too noisy
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  -cert-err58-cpp,
+  -clang-analyzer-cplusplus.NewDeleteLeaks,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-vararg,
+  -google-readability-avoid-underscore-in-googletest-name,
+  -google-readability-todo,
+  -hicpp-avoid-c-arrays,
+  -hicpp-no-array-decay,
+  -hicpp-vararg,
+  -misc-non-private-member-variables-in-classes,
+  -modernize-avoid-c-arrays,
+  -modernize-use-trailing-return-type,
+  -readability-avoid-const-params-in-decls,
+  -readability-magic-numbers,
+  -readability-named-parameter
+
+# Tiger Style specific check options
+CheckOptions:
+  # Function length limit (Tiger Style: 70 lines max)
+  readability-function-size.LineThreshold: 70
+  readability-function-size.StatementThreshold: 50
+  readability-function-size.BranchThreshold: 15
+  readability-function-size.ParameterThreshold: 6
+  readability-function-size.NestingThreshold: 4
+  readability-function-size.VariableThreshold: 20
+  
+  # Naming conventions (snake_case for Tiger Style)
+  readability-identifier-naming.NamespaceCase: snake_case
+  readability-identifier-naming.ClassCase: PascalCase
+  readability-identifier-naming.StructCase: PascalCase
+  readability-identifier-naming.FunctionCase: snake_case
+  readability-identifier-naming.MethodCase: snake_case
+  readability-identifier-naming.VariableCase: snake_case
+  readability-identifier-naming.ParameterCase: snake_case
+  readability-identifier-naming.MemberCase: snake_case
+  readability-identifier-naming.PrivateMemberSuffix: _
+  readability-identifier-naming.ConstantCase: UPPER_CASE
+  readability-identifier-naming.EnumCase: PascalCase
+  readability-identifier-naming.EnumConstantCase: PascalCase
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+  
+  # Performance optimizations
+  performance-for-range-copy.WarnOnAllAutoCopies: true
+  performance-unnecessary-copy-initialization.AllowedTypes: 'shared_ptr;unique_ptr;weak_ptr'
+  
+  # Modernization preferences
+  modernize-loop-convert.MaxCopySize: 16
+  modernize-loop-convert.MinConfidence: reasonable
+  modernize-pass-by-value.IncludeStyle: llvm
+  modernize-replace-auto-ptr.IncludeStyle: llvm
+  modernize-use-auto.MinTypeNameLength: 5
+  modernize-use-auto.RemoveStars: false
+  
+  # Core Guidelines enforcement
+  cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
+  cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions: true
+  
+  # Readability improvements
+  readability-braces-around-statements.ShortStatementLines: 1
+  readability-implicit-bool-conversion.AllowIntegerConditions: true
+  readability-implicit-bool-conversion.AllowPointerConditions: true
+  
+  # Misc configuration
+  misc-throw-by-value-catch-by-reference.CheckThrowTemporaries: true
+
+# Header filter for project files only
+# This ensures clang-tidy only analyzes our code, not external dependencies
+HeaderFilterRegex: '^.*/(?:src|include|tests)/.*\.(h|hpp|hxx)$'
+
+# Format style for automatic fixes (matches project's clang-format config)
+FormatStyle: file
+
+# Additional configuration
+AnalyzeTemporaryDtors: true

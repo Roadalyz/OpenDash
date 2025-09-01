@@ -78,6 +78,54 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /DNDEBUG")
 endif()
 
+# Static Analysis Configuration (Tiger Style)
+# -------------------------------------------
+# clang-tidy integration for comprehensive static analysis.
+# This follows Tiger Style principles for early bug detection and code quality.
+option(ENABLE_CLANG_TIDY "Enable clang-tidy static analysis" OFF)
+
+if(ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+    if(CLANG_TIDY_EXE)
+        message(STATUS "clang-tidy found: ${CLANG_TIDY_EXE}")
+        
+        # Configure clang-tidy for all targets
+        # Uses .clang-tidy configuration file in project root
+        set(CMAKE_CXX_CLANG_TIDY 
+            "${CLANG_TIDY_EXE};--format-style=file;--header-filter=.*"
+        )
+        
+        # Optional: Run clang-tidy in parallel for faster analysis
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.17")
+            set(CMAKE_CXX_CLANG_TIDY 
+                "${CMAKE_CXX_CLANG_TIDY};--use-color"
+            )
+        endif()
+        
+        message(STATUS "clang-tidy enabled for static analysis")
+    else()
+        message(WARNING "clang-tidy requested but not found")
+        set(ENABLE_CLANG_TIDY OFF CACHE BOOL "Enable clang-tidy static analysis" FORCE)
+    endif()
+endif()
+
+# Additional static analysis option for cppcheck
+option(ENABLE_CPPCHECK "Enable cppcheck static analysis" OFF)
+
+if(ENABLE_CPPCHECK)
+    find_program(CPPCHECK_EXE NAMES "cppcheck")
+    if(CPPCHECK_EXE)
+        message(STATUS "cppcheck found: ${CPPCHECK_EXE}")
+        set(CMAKE_CXX_CPPCHECK 
+            "${CPPCHECK_EXE};--enable=all;--inconclusive;--force;--inline-suppr"
+        )
+        message(STATUS "cppcheck enabled for static analysis")
+    else()
+        message(WARNING "cppcheck requested but not found")
+        set(ENABLE_CPPCHECK OFF CACHE BOOL "Enable cppcheck static analysis" FORCE)
+    endif()
+endif()
+
 # Platform-Specific Configuration
 # -------------------------------
 # Handle platform differences for optimal builds on each supported system.

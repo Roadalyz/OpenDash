@@ -285,8 +285,35 @@ Managed through Conan package manager:
 
 1. **Follow Tiger Style** - See `docs/tiger_style_cpp.md`
 2. **Write tests first** - All new functionality requires tests
-3. **Use static analysis** - Enable all compiler warnings
+3. **Use static analysis** - Run `./scripts/static_analysis.sh` before committing
 4. **Document your code** - Include Doxygen comments for public APIs
+
+### Code Quality Tools
+- **clang-tidy** - Static analysis for bug detection and modern C++ practices
+- **cppcheck** - Additional static analysis for security and performance
+- **clang-format** - Automatic code formatting
+
+Run static analysis:
+```bash
+# Run all analysis tools
+./scripts/static_analysis.sh
+
+# Run specific tools
+./scripts/static_analysis.sh --clang-tidy-only
+./scripts/static_analysis.sh --cppcheck-only
+
+# Auto-fix issues where possible
+./scripts/static_analysis.sh --fix
+```
+
+Build with static analysis:
+```bash
+# Enable clang-tidy during build
+./scripts/build.sh debug --clang-tidy
+
+# Enable all static analysis tools
+./scripts/build.sh debug --static-analysis
+```
 
 ### Code Style
 - Use `clang-format` with provided configuration
